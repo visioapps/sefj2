@@ -296,12 +296,9 @@ html,body{width:100%;height:100%;overflow:hidden;
 .cm-btn.primary:hover{opacity:.75;}
 .cm-btn.primary:disabled{opacity:.18;}
  
-/* Caméra locale */
-.cm-lcam{border:1px solid var(--light);border-radius:1px;overflow:hidden;
-  background:#f5f5f5;aspect-ratio:4/3;position:relative;margin-top:.3rem;}
-#localVid{width:100%;height:100%;object-fit:cover;display:block;}
-.cm-lcam-lbl{position:absolute;bottom:4px;left:6px;
-  font-size:.5rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(0,0,0,.2);}
+/* Bouton son */
+.cm-btn.sound{border-color:var(--ink);font-size:clamp(10px,1.4vw,13px);}
+.cm-btn.sound:active{transform:scale(.96);}
  
 /* Résultat reçu */
 .cm-result{display:none;flex-direction:column;gap:.25rem;
@@ -503,20 +500,20 @@ html,body{width:100%;height:100%;overflow:hidden;
     <!-- Colonne gauche : deux vues empilées -->
     <div class="cm-views">
  
-      <!-- VUE 1 : caméra locale (téléphone → patient) -->
+      <!-- VUE 1 : webcam écran test + landmarks iris -->
       <div class="cm-view">
-        <div class="cm-view-lbl">Caméra patient</div>
+        <div class="cm-view-lbl">Caméra patient · pupilles</div>
         <div class="cm-view-badge" id="cBadgeEye">● Live</div>
         <canvas id="ctrlCanvasEye"></canvas>
-        <div class="cm-no-content" id="cNoEye">Activez la caméra →</div>
+        <div class="cm-no-content" id="cNoEye">En attente de la webcam</div>
       </div>
  
-      <!-- VUE 2 : test en direct (webcam écran test via PeerJS) -->
+      <!-- VUE 2 : optotypes en cours (capture écran test) -->
       <div class="cm-view">
         <div class="cm-view-lbl">Test en direct</div>
         <div class="cm-view-badge" id="cBadgeTest">● Live</div>
         <canvas id="ctrlCanvasTest"></canvas>
-        <div class="cm-no-content" id="cNoTest">En attente du flux</div>
+        <div class="cm-no-content" id="cNoTest">En attente du test</div>
       </div>
  
     </div>
@@ -547,12 +544,10 @@ html,body{width:100%;height:100%;overflow:hidden;
       </div>
  
       <div>
-        <div class="cm-sec">Caméra locale</div>
-        <div class="cm-lcam">
-          <video id="localVid" autoplay muted playsinline></video>
-          <div class="cm-lcam-lbl" id="lcamLbl">inactive</div>
-        </div>
-        <button class="cm-btn" id="cBtnCam" onclick="toggleLocalCam()" style="margin-top:.4rem;">Activer →</button>
+        <div class="cm-sec">Attention</div>
+        <button class="cm-btn sound" onclick="ctrlCmd('cmd-sound')" style="margin-top:.55rem;font-size:1rem;letter-spacing:.08em;">
+          🔔 Signal sonore
+        </button>
       </div>
  
       <div>
@@ -574,7 +569,9 @@ html,body{width:100%;height:100%;overflow:hidden;
      JAVASCRIPT
 ══════════════════════════════════════════ -->
 <script>
-const SEUIL=0.03,STEP_DURATION=5000,HOLD_CORRECT_MS=600;
+const SEUIL=0.09,STEP_DURATION=5000,HOLD_CORRECT_MS=600;
+// SEUIL : ratio de décentrement de la pupille dans l'œil (0=coin, 0.5=centre, 1=autre coin)
+// 0.09 = il faut que la pupille soit clairement décalée d'un côté pour valider
 const LANDOLT_LEVELS=[
   {av:0.3,hmm:194.08},{av:0.4,hmm:145.51},{av:0.5,hmm:116.39},{av:0.6,hmm:96.98},
   {av:0.8,hmm:72.73},{av:1.0,hmm:58.18},{av:1.3,hmm:44.75},{av:1.6,hmm:36.36},
@@ -593,7 +590,7 @@ let appRole=null,peer=null,peerConn=null;
 let faceMeshObj=null,cameraObj=null,camReady=false;
 let smoothH=0.5,gazeDir='none',smoothHead=0,headDir='none';
 let estimatedDistCm=80;
-const IPD_REF_MM=63,HEAD_YAW_SEUIL=0.04;
+const IPD_REF_MM=63,HEAD_YAW_SEUIL=0.10; // seuil tête plus strict : rotation franche requise
 let testRunning=false,testFinished=false,testPaused=false,pauseStart=0;
 let stepIndex=0,spinSide='left',stepStartTime=0,correctHoldStart=null;
 let lastGoodSize=LANDOLT_LEVELS[0],rafId=null;
@@ -646,8 +643,9 @@ function setTestBanner(live,txt){document.getElementById('ctrlDot').className='c
 function sendToCtrl(msg){if(peerConn&&peerConn.open)try{peerConn.send(msg);}catch(e){}}
 function sendTestState(){sendToCtrl({type:'state',screen:currentTestScreen(),testRunning,testPaused,testFinished,stepIndex,totalLevels:LANDOLT_LEVELS.length});}
 function currentTestScreen(){for(const id of['sCalib','sMode','sTest'])if(document.getElementById(id).classList.contains('active'))return id;return 'unknown';}
-let _lastFrTs=0;
-function frameThrottle(){const n=Date.now();if(n-_lastFrTs<200)return false;_lastFrTs=n;return true;}
+let _lastFrTs=0,_lastScTs=0;
+function frameThrottle(){const n=Date.now();if(n-_lastFrTs<130)return false;_lastFrTs=n;return true;}
+function screenThrottle(){const n=Date.now();if(n-_lastScTs<250)return false;_lastScTs=n;return true;}
 function handleTestCmd(msg){
   if(!msg||!msg.type)return;
   switch(msg.type){
@@ -657,6 +655,7 @@ function handleTestCmd(msg){
     case 'cmd-goMode':  testGoModeFromCtrl();break;
     case 'cmd-recalib': testRecalibFromCtrl();break;
     case 'cmd-pickEye': pickEye(msg.eye);break;
+    case 'cmd-sound':   playAttentionSound();break;
     case 'ping':        sendTestState();break;
   }
 }
@@ -688,15 +687,32 @@ function setCcStatus(cls,txt){const el=document.getElementById('ccStatus');el.te
 function disableCtrlBtns(){['cBtnPause','cBtnResume','cBtnStop','cBtnMode'].forEach(id=>document.getElementById(id).disabled=true);}
  
 // Messages reçus côté ctrl
-let testImg=new Image(),testBusy=false;
+let eyeImg=new Image(),testImg=new Image(),eyeBusy=false,testBusy=false;
 function handleCtrlMsg(msg){
   if(!msg||!msg.type)return;
   switch(msg.type){
-    case 'state':     updateCtrlState(msg);break;
-    case 'level':     updateCtrlLevel(msg);break;
-    case 'result':    showCtrlResult(msg.session,msg.history);break;
-    case 'cam-frame': renderTestFrame(msg.data);break;
+    case 'state':      updateCtrlState(msg);break;
+    case 'level':      updateCtrlLevel(msg);break;
+    case 'result':     showCtrlResult(msg.session,msg.history);break;
+    case 'cam-frame':  renderEyeFrame(msg.data);break;
+    case 'test-frame': renderTestFrame(msg.data);break;
   }
+}
+// Vue 1 : webcam + landmarks iris
+function renderEyeFrame(dataURL){
+  const canvas=document.getElementById('ctrlCanvasEye');
+  document.getElementById('cNoEye').style.display='none';
+  document.getElementById('cBadgeEye').classList.add('live');
+  if(eyeBusy)return;eyeBusy=true;
+  eyeImg.onload=()=>{
+    const a=canvas.parentElement;
+    const sc=Math.min(a.clientWidth/eyeImg.width,a.clientHeight/eyeImg.height);
+    canvas.width=Math.round(eyeImg.width*sc);canvas.height=Math.round(eyeImg.height*sc);
+    canvas.getContext('2d').drawImage(eyeImg,0,0,canvas.width,canvas.height);
+    eyeBusy=false;
+  };
+  eyeImg.onerror=()=>{eyeBusy=false;};
+  eyeImg.src=dataURL;
 }
 function updateCtrlState(s){
   const run=s.testRunning,pau=s.testPaused;
@@ -724,6 +740,7 @@ function showCtrlResult(session,hist){
   document.getElementById('cRpDetail').textContent=(session.avCorr?'Corrigée : M'+session.avCorr+' @ '+session.dist+'cm\n':'')+session.levels+' niveaux · '+(session.completed?'Complet':'Arrêté');
   if(hist&&hist.length)document.getElementById('cHistList').innerHTML=hist.slice(0,5).map(s=>`<div class="cm-hist-item"><span>${s.date} · ${s.levels}niv</span><b>M${s.av%1===0?s.av.toFixed(0):s.av.toString().replace('.',',')} ${s.eye?s.eye.toUpperCase():''}</b></div>`).join('');
 }
+// Vue 2 : anneaux (capture écran test)
 function renderTestFrame(dataURL){
   const canvas=document.getElementById('ctrlCanvasTest');
   document.getElementById('cNoTest').style.display='none';
@@ -734,43 +751,25 @@ function renderTestFrame(dataURL){
   testImg.src=dataURL;
 }
  
-// Caméra locale → vue eye
-let localStream=null,lcRaf=null;
-async function toggleLocalCam(){
-  const btn=document.getElementById('cBtnCam'),vid=document.getElementById('localVid'),lbl=document.getElementById('lcamLbl');
-  if(localStream){
-    localStream.getTracks().forEach(t=>t.stop());localStream=null;vid.srcObject=null;
-    btn.textContent='Activer →';lbl.textContent='inactive';
-    document.getElementById('cNoEye').style.display='block';document.getElementById('cBadgeEye').classList.remove('live');
-    if(lcRaf){cancelAnimationFrame(lcRaf);lcRaf=null;}
-  }else{
-    try{
-      localStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:640}},audio:false});
-      vid.srcObject=localStream;btn.textContent='Arrêter';lbl.textContent='● live';
-      document.getElementById('cNoEye').style.display='none';document.getElementById('cBadgeEye').classList.add('live');
-      streamLocalToCanvas();
-    }catch(e){btn.textContent='Refusée';setTimeout(()=>btn.textContent='Activer →',2000);}
-  }
+// ── Son d'attention (joué sur l'écran test) ──
+function playAttentionSound(){
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    // Petite mélodie enjouée : do-mi-sol
+    [[523,0],[659,.18],[784,.36]].forEach(([freq,delay])=>{
+      const osc=ctx.createOscillator(),gain=ctx.createGain();
+      osc.connect(gain);gain.connect(ctx.destination);
+      osc.type='sine';osc.frequency.value=freq;
+      gain.gain.setValueAtTime(0,ctx.currentTime+delay);
+      gain.gain.linearRampToValueAtTime(0.35,ctx.currentTime+delay+0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+delay+0.22);
+      osc.start(ctx.currentTime+delay);osc.stop(ctx.currentTime+delay+0.25);
+    });
+  }catch(e){console.warn('AudioContext',e);}
 }
-function streamLocalToCanvas(){
-  const vid=document.getElementById('localVid'),canvas=document.getElementById('ctrlCanvasEye');
-  function draw(){
-    if(!localStream){lcRaf=null;return;}
-    if(vid.readyState>=2&&vid.videoWidth>0){
-      const a=canvas.parentElement,sc=Math.min(a.clientWidth/vid.videoWidth,a.clientHeight/vid.videoHeight);
-      canvas.width=Math.round(vid.videoWidth*sc);canvas.height=Math.round(vid.videoHeight*sc);
-      canvas.getContext('2d').drawImage(vid,0,0,canvas.width,canvas.height);
-    }
-    lcRaf=requestAnimationFrame(draw);
-  }
-  if(lcRaf)cancelAnimationFrame(lcRaf);
-  lcRaf=requestAnimationFrame(draw);
-}
-function stopLocalCam(){
-  if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;}
-  const v=document.getElementById('localVid');if(v)v.srcObject=null;
-  if(lcRaf){cancelAnimationFrame(lcRaf);lcRaf=null;}
-}
+ 
+// Caméra locale — stub vide (plus utilisée côté contrôle)
+function stopLocalCam(){}
  
 // ── MIRA LOGIC ──
 function goMode(){renderHistory();showScreen('sMode');}
@@ -782,12 +781,19 @@ async function initCamInternal(){
   faceMeshObj=new FaceMesh({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
   faceMeshObj.setOptions({maxNumFaces:1,refineLandmarks:true,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
   faceMeshObj.onResults(res=>{
-    canvas.width=video.videoWidth||320;canvas.height=video.videoHeight||240;ctx2.clearRect(0,0,canvas.width,canvas.height);
-    processIris(res,ctx2,canvas.width,canvas.height);
-    if(peerConn&&peerConn.open&&frameThrottle()){const fc=document.createElement('canvas');fc.width=240;fc.height=180;fc.getContext('2d').drawImage(video,0,0,240,180);sendToCtrl({type:'cam-frame',data:fc.toDataURL('image/jpeg',.4)});}
+    const W=video.videoWidth||480,H=video.videoHeight||360;
+    canvas.width=W;canvas.height=H;
+    // Dessin miroir pour que le praticien voie le patient comme dans un miroir
+    ctx2.save();ctx2.scale(-1,1);ctx2.drawImage(video,-W,0,W,H);ctx2.restore();
+    // Traitement iris (coords non-miroir pour le calcul, miroir pour l'affichage)
+    processIris(res,ctx2,W,H);
+    // Envoyer frame webcam+landmarks à ~8fps, qualité améliorée
+    if(peerConn&&peerConn.open&&frameThrottle()){
+      sendToCtrl({type:'cam-frame',data:canvas.toDataURL('image/jpeg',.75)});
+    }
   });
   await faceMeshObj.initialize();
-  cameraObj=new Camera(video,{onFrame:async()=>{if(faceMeshObj)await faceMeshObj.send({image:video});},width:320,height:240});
+  cameraObj=new Camera(video,{onFrame:async()=>{if(faceMeshObj)await faceMeshObj.send({image:video});},width:480,height:360});
   await cameraObj.start();
 }
  
@@ -810,8 +816,36 @@ function processIris(res,ctx,w,h){
   if(er<0.45)detectedEye='od';else if(er>2.2)detectedEye='og';else detectedEye='bino';
   let fAvg=avg;if(detectedEye==='od')fAvg=hRatio(lms,IRIS_R,ER_OUT,ER_IN,w,h);else if(detectedEye==='og')fAvg=hRatio(lms,IRIS_L,EL_OUT,EL_IN,w,h);
   smoothH=smoothH*.75+fAvg*.25;
-  let irisDir='none';if(smoothH<0.5-SEUIL)irisDir='right';else if(smoothH>0.5+SEUIL)irisDir='left';
-  gazeDir=irisDir!=='none'?irisDir:headDir!=='none'?headDir:'none';
+ 
+  // ── Direction du regard : iris en priorité, tête en confirmation uniquement ──
+  // Zone morte : si l'iris est entre 0.5-SEUIL et 0.5+SEUIL → regard central → aucune direction
+  let irisDir='none';
+  if(smoothH < 0.5-SEUIL) irisDir='right';
+  else if(smoothH > 0.5+SEUIL) irisDir='left';
+ 
+  // Tête : seulement si elle confirme la même direction que l'iris, ou si iris est dans la zone morte
+  // mais avec un seuil de tête beaucoup plus strict (rotation franche)
+  let finalDir='none';
+  if(irisDir!=='none'){
+    // Iris clair → on accepte directement
+    finalDir=irisDir;
+  } else {
+    // Iris central (zone morte) : on refuse toute validation, même si la tête tourne
+    // C'est la correction clé : pas de fallback tête quand le regard est droit devant
+    finalDir='none';
+  }
+  gazeDir=finalDir;
+  // Dessiner les points iris sur le canvas (qui est déjà en mode miroir)
+  // On inverse x pour compenser le miroir du canvas
+  function drawIrisDot(cx,cy,color){
+    const mx=w-cx; // miroir x
+    ctx.beginPath();ctx.arc(mx,cy,Math.max(4,w*0.012),0,Math.PI*2);
+    ctx.fillStyle=color;ctx.fill();
+    ctx.beginPath();ctx.arc(mx,cy,Math.max(4,w*0.012)+1.5,0,Math.PI*2);
+    ctx.strokeStyle='rgba(255,255,255,0.6)';ctx.lineWidth=1.5;ctx.stroke();
+  }
+  drawIrisDot(cL.x,cL.y,'rgba(80,160,255,0.85)');   // OG bleu
+  drawIrisDot(cR.x,cR.y,'rgba(255,90,90,0.85)');    // OD rouge
 }
  
 async function startEyeTracker(){
@@ -915,6 +949,24 @@ function masterLoop(ts){
   }else{correctHoldStart=null;}
   if(elapsed>=STEP_DURATION){finishTest(false);return;}
   rafId=requestAnimationFrame(masterLoop);
+  // Capture écran test (avec anneaux) → contrôleur ~4fps
+  if(peerConn&&peerConn.open&&screenThrottle()){
+    const arena=document.getElementById('arena');
+    const w=Math.min(window.innerWidth,600),h=Math.round(w*window.innerHeight/window.innerWidth);
+    const sc=document.createElement('canvas');sc.width=w;sc.height=h;
+    const sctx=sc.getContext('2d');
+    // Fond blanc
+    sctx.fillStyle='#fff';sctx.fillRect(0,0,w,h);
+    // Dessiner les deux canvases d'anneaux
+    ['bLeft','bRight'].forEach(id=>{
+      const el=document.getElementById(id);if(!el||!el.width)return;
+      const rect=el.getBoundingClientRect();
+      const sx=rect.left/window.innerWidth*w,sy=rect.top/window.innerHeight*h;
+      const sw=rect.width/window.innerWidth*w,sh=rect.height/window.innerHeight*h;
+      sctx.drawImage(el,sx,sy,sw,sh);
+    });
+    sendToCtrl({type:'test-frame',data:sc.toDataURL('image/jpeg',.8)});
+  }
 }
 function finishTest(completed){
   if(testFinished)return;testFinished=true;testRunning=false;
