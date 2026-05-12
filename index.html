@@ -2,748 +2,972 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Écrans Test & Contrôle</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Mira</title>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap');
-
-  :root {
-    --bg: #0a0a0f;
-    --surface: #13131a;
-    --border: #2a2a3a;
-    --accent: #e8ff47;
-    --accent2: #47c8ff;
-    --text: #f0f0f8;
-  }
-
-  * { margin:0; padding:0; box-sizing:border-box; }
-
-  body {
-    font-family: 'Syne', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  /* ── ÉCRANS ── */
-  .screen { display:none; width:100%; min-height:100vh; }
-  .screen.active { display:flex; }
-
-  /* ══════════════ MENU ══════════════ */
-  #menu {
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2.5rem;
-    padding: 2rem;
-    animation: fadeUp .5s ease both;
-  }
-
-  @keyframes fadeUp {
-    from { opacity:0; transform:translateY(20px); }
-    to   { opacity:1; transform:translateY(0); }
-  }
-
-  #menu h1 {
-    font-size: clamp(1.8rem,5vw,3rem);
-    font-weight: 800;
-    letter-spacing: -.03em;
-    text-align: center;
-    line-height: 1.1;
-  }
-  #menu h1 span { color: var(--accent); }
-
-  .btn-row { display:flex; gap:1.2rem; flex-wrap:wrap; justify-content:center; }
-
-  .btn {
-    font-family: 'DM Mono', monospace;
-    font-size: .95rem;
-    padding: .85rem 2rem;
-    border: 1.5px solid var(--border);
-    background: var(--surface);
-    color: var(--text);
-    cursor: pointer;
-    border-radius: 6px;
-    transition: all .2s;
-  }
-  .btn:hover { border-color:var(--accent); color:var(--accent); transform:translateY(-2px); }
-  .btn-y { background:var(--accent); color:#0a0a0f; border-color:var(--accent); font-weight:500; }
-  .btn-y:hover { background:#d4eb2a; color:#0a0a0f; border-color:#d4eb2a; transform:translateY(-2px); }
-  .btn-b { background:var(--accent2); color:#0a0a0f; border-color:var(--accent2); font-weight:500; }
-  .btn-b:hover { background:#30b4e8; color:#0a0a0f; border-color:#30b4e8; transform:translateY(-2px); }
-
-  .hint {
-    font-family: 'DM Mono', monospace;
-    font-size: .78rem;
-    color: #555;
-    text-align: center;
-    max-width: 400px;
-    line-height: 1.6;
-  }
-
-  /* ══════════════ ÉCRAN DE TEST ══════════════ */
-  #test-screen {
-    background: #fff;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-  }
-
-  #test-label {
-    font-size: clamp(4rem,18vw,12rem);
-    font-weight: 800;
-    color: #0a0a0f;
-    letter-spacing: -.04em;
-    transition: all .4s cubic-bezier(.16,1,.3,1);
-    user-select: none;
-    text-align: center;
-    padding: 1rem;
-  }
-  #test-label.pop { color:#e01f5a; transform:scale(1.06); }
-
-  #test-topbar {
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: .8rem 1.2rem;
-    background: rgba(255,255,255,.9);
-    backdrop-filter: blur(6px);
-    border-bottom: 1px solid #eee;
-    gap: 1rem;
-    flex-wrap: wrap;
-  }
-
-  #test-topbar button {
-    font-family: 'DM Mono', monospace;
-    font-size: .75rem;
-    padding: .4rem .9rem;
-    background: #f0f0f0;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    cursor: pointer;
-    color: #333;
-    transition: background .2s;
-  }
-  #test-topbar button:hover { background: #e0e0e0; }
-
-  .code-box {
-    display: flex;
-    align-items: center;
-    gap: .7rem;
-    font-family: 'DM Mono', monospace;
-  }
-  .code-label { font-size: .7rem; color: #888; }
-  .code-val {
-    font-size: 1.4rem;
-    font-weight: 500;
-    letter-spacing: .15em;
-    color: #0a0a0f;
-    background: #f5f5f5;
-    padding: .3rem .8rem;
-    border-radius: 6px;
-    border: 1.5px solid #ddd;
-    min-width: 110px;
-    text-align: center;
-  }
-
-  .status-pill {
-    font-family: 'DM Mono', monospace;
-    font-size: .72rem;
-    display: flex;
-    align-items: center;
-    gap: .45rem;
-    color: #888;
-  }
-  .dot { width:8px;height:8px;border-radius:50%;background:#ccc;flex-shrink:0; }
-  .dot.live { background:#2ecc71;box-shadow:0 0 6px #2ecc71;animation:pulse 1.5s infinite; }
-  .dot.warn { background:#f39c12;box-shadow:0 0 6px #f39c12; }
-  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.4} }
-
-  /* ══════════════ ÉCRAN DE CONTRÔLE ══════════════ */
-  #ctrl-screen {
-    flex-direction: column;
-    background: var(--bg);
-  }
-
-  .ctrl-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: .9rem 1.5rem;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface);
-    flex-shrink: 0;
-    flex-wrap: wrap;
-    gap: .5rem;
-  }
-  .ctrl-header h2 { font-size:1rem;font-weight:700;letter-spacing:.05em;color:var(--accent2); }
-
-  .ctrl-body {
-    flex:1;
-    display: grid;
-    grid-template-columns: 1fr 280px;
-    overflow: hidden;
-    min-height: 0;
-  }
-
-  @media (max-width: 600px) {
-    .ctrl-body { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
-    .side-panel { border-left:none; border-top:1px solid var(--border); max-height:260px; }
-  }
-
-  /* Vidéo */
-  .video-area {
-    position: relative;
-    background: #000;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  #remote-canvas {
-    width:100%;
-    height:100%;
-    object-fit:contain;
-    display:block;
-  }
-
-  #no-video-msg {
-    position:absolute;
-    inset:0;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    color:#444;
-    font-family:'DM Mono',monospace;
-    font-size:.85rem;
-    text-align:center;
-    padding:2rem;
-    line-height:1.8;
-    gap:.5rem;
-  }
-
-  .stream-badge {
-    position:absolute;
-    top:.8rem;left:.8rem;
-    font-family:'DM Mono',monospace;
-    font-size:.68rem;
-    padding:.25rem .7rem;
-    border-radius:4px;
-    background:rgba(232,255,71,.15);
-    border:1px solid rgba(232,255,71,.3);
-    color:var(--accent);
-    display:none;
-  }
-
-  /* Panneau */
-  .side-panel {
-    border-left:1px solid var(--border);
-    background:var(--surface);
-    display:flex;
-    flex-direction:column;
-    padding:1.2rem;
-    gap:.9rem;
-    overflow-y:auto;
-  }
-
-  .side-panel h3 {
-    font-size:.72rem;
-    font-weight:700;
-    letter-spacing:.12em;
-    color:#555;
-    text-transform:uppercase;
-  }
-
-  /* Connexion */
-  .conn-block {
-    display:flex;
-    flex-direction:column;
-    gap:.5rem;
-  }
-
-  .input-row {
-    display:flex;
-    gap:.5rem;
-  }
-
-  #peer-code-input {
-    font-family:'DM Mono',monospace;
-    font-size:1rem;
-    letter-spacing:.12em;
-    padding:.5rem .7rem;
-    border:1.5px solid var(--border);
-    border-radius:6px;
-    background:#0a0a0f;
-    color:var(--text);
-    flex:1;
-    min-width:0;
-    text-transform:uppercase;
-  }
-  #peer-code-input:focus { outline:none;border-color:var(--accent2); }
-  #peer-code-input::placeholder { color:#333;letter-spacing:.05em; }
-
-  #btn-connect {
-    font-family:'DM Mono',monospace;
-    font-size:.8rem;
-    padding:.5rem 1rem;
-    border-radius:6px;
-    border:1.5px solid var(--accent2);
-    background:var(--accent2);
-    color:#0a0a0f;
-    cursor:pointer;
-    font-weight:500;
-    transition:all .2s;
-    white-space:nowrap;
-  }
-  #btn-connect:hover { background:#30b4e8; }
-  #btn-connect:disabled { opacity:.4;cursor:not-allowed; }
-
-  .ctrl-btn {
-    font-family:'DM Mono',monospace;
-    font-size:.88rem;
-    padding:.75rem 1rem;
-    border-radius:6px;
-    border:1.5px solid var(--border);
-    background:transparent;
-    color:var(--text);
-    cursor:pointer;
-    transition:all .2s;
-    text-align:left;
-    width:100%;
-  }
-  .ctrl-btn:hover { border-color:var(--accent);color:var(--accent);background:rgba(232,255,71,.05); }
-  .ctrl-btn:disabled { opacity:.35;cursor:not-allowed; }
-  .ctrl-btn.on { background:var(--accent);color:#0a0a0f;border-color:var(--accent);font-weight:500; }
-
-  hr.div { border:none;border-top:1px solid var(--border);margin:.1rem 0; }
-
-  .log-area {
-    flex:1;
-    font-family:'DM Mono',monospace;
-    font-size:.68rem;
-    color:#444;
-    line-height:1.9;
-    overflow-y:auto;
-    min-height:60px;
-  }
-  .log-area span { display:block; }
-  .log-area .ok { color:#2ecc71; }
-  .log-area .info { color:var(--accent2); }
-  .log-area .err { color:#e74c3c; }
-
-  /* Footer */
-  .ctrl-footer {
-    display:flex;
-    align-items:center;
-    gap:.7rem;
-    padding:.55rem 1.4rem;
-    border-top:1px solid var(--border);
-    background:var(--surface);
-    flex-shrink:0;
-    font-family:'DM Mono',monospace;
-    font-size:.7rem;
-    color:#555;
-  }
-
-  /* ── CONNECT SCREEN ── */
-  #connect-overlay {
-    display:none;
-    position:fixed;
-    inset:0;
-    background:rgba(10,10,15,.95);
-    z-index:100;
-    align-items:center;
-    justify-content:center;
-    flex-direction:column;
-    gap:1.5rem;
-    padding:2rem;
-  }
-  #connect-overlay.active { display:flex; }
-  #connect-overlay h2 { font-size:1.2rem;font-weight:700;color:var(--accent2);text-align:center; }
-  #connect-overlay p { font-family:'DM Mono',monospace;font-size:.8rem;color:#666;text-align:center;line-height:1.7;max-width:320px; }
+/* ═══════════════════════════════════════════
+   BASE
+═══════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#fff;--ink:#111;--muted:#aaa;--light:#eee;}
+html,body{width:100%;height:100%;overflow:hidden;
+  background:var(--bg);color:var(--ink);
+  font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;}
+.screen{display:none;position:fixed;inset:0;overflow:hidden;
+  flex-direction:column;align-items:center;justify-content:center;}
+.screen.active{display:flex;}
+ 
+/* ═══════════════════════════════════════════
+   ACCUEIL — esthétique Mira pure (blanc / léger)
+═══════════════════════════════════════════ */
+#sHome{gap:clamp(28px,5vh,56px);padding:clamp(20px,4vw,60px);}
+ 
+.home-logo{
+  font-size:clamp(48px,10vw,96px);font-weight:300;
+  letter-spacing:.28em;text-transform:uppercase;
+  color:var(--ink);line-height:1;text-align:center;
+}
+.home-tagline{
+  font-size:clamp(9px,1.3vw,12px);letter-spacing:.25em;
+  text-transform:uppercase;color:var(--muted);
+  margin-top:-1rem;text-align:center;
+}
+.home-cards{display:flex;gap:clamp(12px,2.5vw,28px);flex-wrap:wrap;justify-content:center;}
+.home-card{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:clamp(10px,2vh,18px);
+  width:clamp(150px,34vw,220px);aspect-ratio:1;
+  background:none;border:1.5px solid var(--ink);border-radius:3px;
+  cursor:pointer;transition:background .18s,color .18s;
+  font-size:clamp(10px,1.4vw,13px);letter-spacing:.18em;text-transform:uppercase;color:var(--ink);
+}
+.home-card:hover{background:var(--ink);color:#fff;}
+.home-card:hover svg{stroke:#fff;}
+.home-card svg{transition:stroke .18s;}
+ 
+/* ═══════════════════════════════════════════
+   BANDEAU CODE
+═══════════════════════════════════════════ */
+#ctrlBanner{
+  position:fixed;top:0;left:0;right:0;z-index:50;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.5rem 1.2rem;background:rgba(255,255,255,.96);backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--light);gap:.8rem;flex-wrap:wrap;
+  transition:opacity .35s,transform .35s;
+}
+#ctrlBanner.hidden{opacity:0;pointer-events:none;transform:translateY(-100%);}
+.ctrl-code-wrap{display:flex;align-items:center;gap:.5rem;}
+.ctrl-code-label{font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
+.ctrl-code-val{font-size:1rem;font-weight:400;letter-spacing:.22em;color:var(--ink);
+  background:#f7f7f7;padding:.2rem .7rem;border-radius:2px;border:1px solid var(--light);
+  min-width:88px;text-align:center;}
+.ctrl-pill{display:flex;align-items:center;gap:.4rem;
+  font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+.ctrl-dot{width:7px;height:7px;border-radius:50%;background:#ddd;flex-shrink:0;transition:background .3s;}
+.ctrl-dot.live{background:var(--ink);animation:blink 1.4s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.btn-back{background:none;border:none;font-size:.62rem;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted);cursor:pointer;padding:4px 8px;transition:color .15s;}
+.btn-back:hover{color:var(--ink);}
+ 
+/* ═══════════════════════════════════════════
+   CALIBRATION
+═══════════════════════════════════════════ */
+#sCalib{gap:clamp(14px,3vh,32px);padding:clamp(20px,4vw,60px);padding-top:clamp(64px,10vh,96px);}
+.calib-title{font-size:clamp(32px,7vw,72px);font-weight:300;letter-spacing:.25em;text-transform:uppercase;}
+.calib-step{font-size:clamp(9px,1.2vw,12px);letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-top:-8px;}
+.calib-body{display:flex;flex-direction:column;align-items:center;gap:14px;width:100%;max-width:460px;}
+.calib-instruction{font-size:clamp(11px,1.4vw,13px);color:var(--muted);text-align:center;line-height:1.6;}
+.cal-track-wrap{width:100%;display:flex;flex-direction:column;gap:6px;}
+.cal-track{width:100%;height:clamp(32px,5vh,48px);background:#f0f0f0;border-radius:6px;position:relative;}
+.cal-bar{position:absolute;left:0;top:0;bottom:0;background:var(--ink);border-radius:6px 0 0 6px;
+  min-width:40px;display:flex;align-items:center;justify-content:center;overflow:hidden;pointer-events:none;}
+.cal-bar::after{content:'';position:absolute;inset:0;
+  background:repeating-linear-gradient(90deg,transparent 0,transparent 9px,rgba(255,255,255,.18) 9px,rgba(255,255,255,.18) 10px);}
+.cal-ruler-txt{color:#fff;font-size:11px;letter-spacing:.08em;pointer-events:none;white-space:nowrap;position:relative;z-index:1;}
+.cal-handle{position:absolute;top:0;bottom:0;right:0;width:32px;display:flex;align-items:center;justify-content:center;
+  background:#333;color:#fff;font-size:18px;letter-spacing:-3px;border-radius:0 6px 6px 0;
+  cursor:ew-resize;touch-action:none;user-select:none;border-left:2px solid rgba(255,255,255,.15);}
+.cal-track-labels{display:flex;justify-content:space-between;padding:0 2px;}
+.cal-px-val{font-size:11px;color:var(--muted);}
+.cal-ok-badge{font-size:10px;color:var(--ink);letter-spacing:.1em;text-transform:uppercase;
+  display:none;padding:4px 12px;border:1px solid #ccc;border-radius:20px;}
+.btn-validate{background:var(--ink);color:#fff;border:none;border-radius:2px;
+  padding:clamp(10px,1.8vh,15px) clamp(28px,5vw,48px);font-size:clamp(11px,1.4vw,13px);
+  letter-spacing:.16em;text-transform:uppercase;cursor:pointer;transition:opacity .15s;}
+.btn-validate:hover{opacity:.75;}
+ 
+/* ═══════════════════════════════════════════
+   MODE
+═══════════════════════════════════════════ */
+#sMode{gap:clamp(18px,4vh,44px);padding:clamp(20px,4vw,60px);padding-top:clamp(64px,10vh,96px);}
+.mode-title{font-size:clamp(32px,7vw,72px);font-weight:300;letter-spacing:.25em;text-transform:uppercase;}
+.mode-step{font-size:clamp(9px,1.2vw,12px);letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-top:-8px;}
+.mode-btns{display:flex;gap:clamp(10px,2vw,20px);flex-wrap:wrap;justify-content:center;}
+.btn-mode{background:none;border:1.5px solid var(--ink);border-radius:2px;
+  padding:clamp(14px,2.5vh,22px) clamp(24px,4vw,44px);font-size:clamp(11px,1.5vw,14px);
+  letter-spacing:.16em;text-transform:uppercase;cursor:pointer;color:var(--ink);
+  transition:background .15s,color .15s;white-space:nowrap;}
+.btn-mode:hover{background:var(--ink);color:#fff;}
+.btn-mode.loading{opacity:.5;cursor:wait;}
+.btn-recalib{background:none;border:none;font-size:clamp(9px,1.1vw,11px);letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted);cursor:pointer;padding:4px 8px;transition:color .15s;}
+.btn-recalib:hover{color:var(--ink);}
+ 
+/* ═══════════════════════════════════════════
+   TEST ARENA
+═══════════════════════════════════════════ */
+#sTest{padding:0;position:relative;}
+.test-arena{width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;position:relative;}
+.progress-bar{position:fixed;top:0;left:0;right:0;height:2px;background:#eee;z-index:20;}
+.progress-fill{height:100%;background:var(--ink);transition:width .1s linear;}
+.timer-hint{position:fixed;top:8px;left:50%;transform:translateX(-50%);
+  font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#ddd;z-index:20;font-variant-numeric:tabular-nums;}
+.size-label{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#ddd;z-index:20;white-space:nowrap;}
+.dist-label{position:fixed;bottom:7px;left:50%;transform:translateX(-50%);
+  font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#ccc;z-index:20;white-space:nowrap;}
+.ball-container{position:absolute;display:flex;align-items:center;justify-content:center;}
+.ball-canvas{display:block;flex-shrink:0;transition:opacity .25s ease;}
+.ball-canvas.gazing{filter:drop-shadow(0 0 10px rgba(17,17,17,.3));}
+#videoMini,#canvasMini{display:none!important;}
+ 
+/* ═══════════════════════════════════════════
+   PAUSE
+═══════════════════════════════════════════ */
+#pauseOverlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(255,255,255,.96);
+  flex-direction:column;align-items:center;justify-content:center;gap:clamp(14px,3vh,28px);}
+#pauseOverlay.visible{display:flex;}
+.pause-title{font-size:clamp(26px,6vw,52px);font-weight:300;letter-spacing:.18em;text-transform:uppercase;}
+.overlay-btns{display:flex;flex-direction:column;gap:10px;width:clamp(160px,28vw,240px);}
+.btn-ov-primary{width:100%;background:var(--ink);color:#fff;border:none;border-radius:2px;
+  padding:clamp(10px,1.8vh,14px) 0;font-size:clamp(11px,1.4vw,13px);letter-spacing:.14em;
+  text-transform:uppercase;cursor:pointer;transition:opacity .15s;}
+.btn-ov-primary:hover{opacity:.8;}
+.btn-ov-secondary{width:100%;background:none;border:1px solid #ccc;border-radius:2px;
+  padding:clamp(9px,1.6vh,13px) 0;font-size:clamp(10px,1.3vw,12px);letter-spacing:.12em;
+  text-transform:uppercase;cursor:pointer;color:var(--ink);transition:border-color .15s;}
+.btn-ov-secondary:hover{border-color:var(--ink);}
+.btn-ov-ghost{width:100%;background:none;border:none;color:var(--muted);padding:6px 0;
+  font-size:clamp(9px,1.1vw,11px);letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:color .15s;}
+.btn-ov-ghost:hover{color:var(--ink);}
+ 
+/* ═══════════════════════════════════════════
+   RÉSULTAT
+═══════════════════════════════════════════ */
+#resultModal{display:none;position:fixed;inset:0;z-index:300;background:rgba(255,255,255,.97);
+  flex-direction:row;align-items:center;justify-content:center;
+  gap:clamp(24px,6vw,72px);padding:0 clamp(20px,5vw,60px);}
+#resultModal.visible{display:flex;}
+.rm-left{display:flex;flex-direction:column;align-items:flex-start;gap:clamp(4px,1vh,10px);flex:0 0 auto;}
+.rm-right{display:flex;flex-direction:column;align-items:flex-start;gap:clamp(6px,1.2vh,12px);flex:1 1 auto;max-width:300px;}
+.rm-num{font-size:clamp(52px,11vw,106px);font-weight:300;line-height:1;letter-spacing:-.04em;}
+.rm-unit{font-size:clamp(11px,1.6vw,14px);color:var(--muted);letter-spacing:.1em;}
+.rm-dist{font-size:clamp(11px,1.5vw,13px);color:var(--ink);letter-spacing:.05em;margin-top:4px;}
+.rm-verdict{font-size:clamp(10px,1.3vw,12px);color:var(--muted);line-height:1.65;}
+.rm-hist-title{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#ccc;}
+.rm-h-list{display:flex;flex-direction:column;gap:3px;max-height:clamp(72px,18vh,140px);overflow-y:auto;width:100%;}
+.rm-h-item{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f0f0f0;
+  font-size:11px;color:var(--muted);}
+.rm-h-item span:last-child{font-weight:500;color:var(--ink);}
+ 
+/* EYE PICKER */
+#eyePicker{display:none;position:fixed;inset:0;z-index:350;background:rgba(255,255,255,.97);
+  flex-direction:column;align-items:center;justify-content:center;gap:clamp(14px,3vh,28px);}
+.ep-title{font-size:clamp(12px,1.8vw,16px);letter-spacing:.18em;text-transform:uppercase;color:var(--muted);}
+.ep-btns{display:flex;gap:clamp(10px,2vw,18px);flex-wrap:wrap;justify-content:center;}
+ 
+/* ═══════════════════════════════════════════
+   CONTRÔLE — CONNEXION  (esthétique Mira)
+═══════════════════════════════════════════ */
+#sCtrlConnect{gap:clamp(20px,4vh,48px);padding:clamp(20px,4vw,60px);}
+.cc-logo{font-size:clamp(32px,7vw,72px);font-weight:300;letter-spacing:.25em;text-transform:uppercase;text-align:center;}
+.cc-step{font-size:clamp(9px,1.2vw,12px);letter-spacing:.2em;text-transform:uppercase;color:var(--muted);text-align:center;margin-top:-1rem;}
+.cc-form{display:flex;flex-direction:column;align-items:center;gap:16px;width:100%;max-width:400px;}
+.cc-form-label{font-size:clamp(9px,1.2vw,11px);letter-spacing:.2em;text-transform:uppercase;color:var(--muted);}
+.cc-input-row{display:flex;gap:.5rem;width:100%;}
+#ccInput{
+  font-family:inherit;font-size:clamp(1rem,2.5vw,1.4rem);font-weight:300;
+  letter-spacing:.28em;text-transform:uppercase;
+  padding:.6rem .9rem;border:1.5px solid var(--ink);border-radius:2px;
+  background:none;color:var(--ink);flex:1;min-width:0;transition:border-color .15s;
+}
+#ccInput:focus{outline:none;border-color:#555;}
+#ccInput::placeholder{color:#ddd;letter-spacing:.1em;}
+.btn-cc{background:var(--ink);color:#fff;border:none;border-radius:2px;
+  padding:.6rem 1.4rem;font-size:clamp(10px,1.3vw,12px);letter-spacing:.16em;text-transform:uppercase;
+  cursor:pointer;transition:opacity .15s;white-space:nowrap;}
+.btn-cc:hover{opacity:.75;}
+.btn-cc:disabled{opacity:.35;cursor:not-allowed;}
+#ccStatus{font-size:clamp(9px,1.1vw,11px);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
+#ccStatus.err{color:#b00;}
+ 
+/* ═══════════════════════════════════════════
+   CONTRÔLE — INTERFACE PRINCIPALE
+   Deux colonnes : [vues empilées] | [panneau]
+═══════════════════════════════════════════ */
+#sCtrlMain{
+  display:none;flex-direction:column;height:100vh;overflow:hidden;
+}
+#sCtrlMain.active{display:flex;}
+ 
+/* Header — même style que les écrans Mira */
+.cm-hdr{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.55rem 1.4rem;border-bottom:1px solid var(--light);
+  flex-shrink:0;gap:.8rem;flex-wrap:wrap;
+}
+.cm-hdr-logo{font-size:1rem;font-weight:300;letter-spacing:.3em;text-transform:uppercase;}
+.cm-hdr-pill{display:flex;align-items:center;gap:.45rem;
+  font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
+.cm-live-dot{width:6px;height:6px;border-radius:50%;background:var(--ink);animation:blink 1.4s infinite;flex-shrink:0;}
+ 
+/* Corps */
+.cm-body{display:grid;grid-template-columns:1fr 240px;flex:1;min-height:0;overflow:hidden;}
+@media(max-width:520px){
+  .cm-body{grid-template-columns:1fr;grid-template-rows:1fr auto;}
+  .cm-panel{border-left:none!important;border-top:1px solid var(--light);max-height:230px;}
+}
+ 
+/* Colonne gauche : deux vues empilées égales */
+.cm-views{display:flex;flex-direction:column;overflow:hidden;border-right:1px solid var(--light);}
+ 
+.cm-view{
+  flex:1;position:relative;background:#fafafa;
+  display:flex;align-items:center;justify-content:center;overflow:hidden;min-height:0;
+}
+.cm-view+.cm-view{border-top:1px solid var(--light);}
+ 
+.cm-view-lbl{
+  position:absolute;top:.55rem;left:.7rem;
+  font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;color:#ccc;
+  pointer-events:none;z-index:2;
+}
+.cm-view-badge{
+  position:absolute;top:.55rem;right:.7rem;
+  font-size:.55rem;letter-spacing:.12em;text-transform:uppercase;
+  padding:.12rem .45rem;border:1px solid #ddd;border-radius:1px;color:#ccc;
+  pointer-events:none;z-index:2;display:none;
+}
+.cm-view-badge.live{display:block;border-color:var(--ink);color:var(--ink);}
+ 
+#ctrlCanvasEye,#ctrlCanvasTest{
+  max-width:100%;max-height:100%;object-fit:contain;display:block;
+}
+.cm-no-content{
+  font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;color:#ccc;
+  text-align:center;line-height:2.4;position:absolute;user-select:none;
+}
+ 
+/* Colonne droite : panneau */
+.cm-panel{
+  display:flex;flex-direction:column;padding:1.1rem;gap:.9rem;overflow-y:auto;
+}
+.cm-sec{font-size:.58rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);
+  padding-bottom:.35rem;border-bottom:1px solid var(--light);}
+ 
+/* Acuité */
+.cm-av-val{font-size:clamp(1.6rem,3.5vw,2.2rem);font-weight:300;letter-spacing:.06em;}
+.cm-av-sub{font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+ 
+/* Barre niveau */
+.cm-level-bar{height:1.5px;background:var(--light);margin-top:.4rem;}
+.cm-level-fill{height:100%;background:var(--ink);transition:width .5s ease;width:0%;}
+ 
+/* État */
+.cm-state{font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
+.cm-state.running{color:var(--ink);}
+.cm-state.paused{color:#888;}
+ 
+/* Boutons — mêmes styles que .btn-mode */
+.cm-btns{display:flex;flex-direction:column;gap:.45rem;}
+.cm-btn{
+  width:100%;background:none;border:1.5px solid var(--ink);border-radius:2px;
+  padding:.65rem .9rem;font-size:clamp(9px,1.2vw,11px);letter-spacing:.16em;
+  text-transform:uppercase;cursor:pointer;color:var(--ink);
+  transition:background .15s,color .15s;
+}
+.cm-btn:hover{background:var(--ink);color:#fff;}
+.cm-btn:disabled{opacity:.18;cursor:not-allowed;pointer-events:none;}
+.cm-btn.primary{background:var(--ink);color:#fff;}
+.cm-btn.primary:hover{opacity:.75;}
+.cm-btn.primary:disabled{opacity:.18;}
+ 
+/* Caméra locale */
+.cm-lcam{border:1px solid var(--light);border-radius:1px;overflow:hidden;
+  background:#f5f5f5;aspect-ratio:4/3;position:relative;margin-top:.3rem;}
+#localVid{width:100%;height:100%;object-fit:cover;display:block;}
+.cm-lcam-lbl{position:absolute;bottom:4px;left:6px;
+  font-size:.5rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(0,0,0,.2);}
+ 
+/* Résultat reçu */
+.cm-result{display:none;flex-direction:column;gap:.25rem;
+  padding:.65rem;border:1px solid var(--light);border-radius:1px;margin-top:.3rem;}
+.cm-result.on{display:flex;}
+.cm-result-val{font-size:1.3rem;font-weight:300;letter-spacing:.06em;}
+.cm-result-detail{font-size:.6rem;letter-spacing:.08em;color:var(--muted);line-height:1.65;white-space:pre-line;}
+ 
+/* Historique */
+.cm-hist{display:flex;flex-direction:column;gap:2px;max-height:90px;overflow-y:auto;margin-top:.2rem;}
+.cm-hist-item{display:flex;justify-content:space-between;padding:3px 0;
+  border-bottom:1px solid var(--light);font-size:.58rem;letter-spacing:.05em;color:var(--muted);}
+.cm-hist-item b{color:var(--ink);font-weight:500;}
+ 
+/* Footer */
+.cm-ftr{display:flex;align-items:center;padding:.4rem 1.4rem;
+  border-top:1px solid var(--light);flex-shrink:0;
+  font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
 </style>
 </head>
 <body>
-
-<!-- ══ MENU ══ -->
-<div id="menu" class="screen active">
-  <h1>Choisir votre<br><span>mode d'affichage</span></h1>
-  <div class="btn-row">
-    <button class="btn btn-y" onclick="openTest()">📺 Écran de Test</button>
-    <button class="btn btn-b" onclick="openCtrl()">🎛 Écran de Contrôle</button>
+ 
+<!-- ══════════════════════════════════════════
+     ACCUEIL
+══════════════════════════════════════════ -->
+<div class="screen active" id="sHome">
+  <div class="home-logo">Mira</div>
+  <div class="home-tagline">Test d'acuité visuelle</div>
+  <div class="home-cards">
+ 
+    <div class="home-card" onclick="chooseRole('test')">
+      <svg width="38" height="38" viewBox="0 0 38 38" fill="none" stroke="#111" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="5" width="32" height="20" rx="2"/>
+        <line x1="13" y1="25" x2="11" y2="33"/>
+        <line x1="25" y1="25" x2="27" y2="33"/>
+        <line x1="9" y1="33" x2="29" y2="33"/>
+      </svg>
+      Écran de test
+    </div>
+ 
+    <div class="home-card" onclick="chooseRole('ctrl')">
+      <svg width="38" height="38" viewBox="0 0 38 38" fill="none" stroke="#111" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 19C3 19 9 8 19 8C29 8 35 19 35 19C35 19 29 30 19 30C9 30 3 19 3 19Z"/>
+        <circle cx="19" cy="19" r="5"/>
+        <circle cx="21" cy="17" r="1.3" fill="#111" stroke="none"/>
+      </svg>
+      Écran de contrôle
+    </div>
+ 
   </div>
-  <p class="hint">
-    Fonctionne entre deux appareils différents.<br>
-    Ouvrez cette page sur chacun, choisissez un mode,<br>
-    puis entrez le code affiché sur l'écran de test.
-  </p>
 </div>
-
-<!-- ══ ÉCRAN DE TEST ══ -->
-<div id="test-screen" class="screen">
-  <div id="test-topbar">
-    <button onclick="goBack()">← Retour</button>
-    <div class="code-box">
-      <span class="code-label">CODE</span>
-      <span class="code-val" id="my-code">…</span>
-    </div>
-    <div class="status-pill">
-      <div class="dot" id="test-dot"></div>
-      <span id="test-status">Initialisation…</span>
-    </div>
+ 
+<!-- ══════════════════════════════════════════
+     BANDEAU CODE (mode test)
+══════════════════════════════════════════ -->
+<div id="ctrlBanner" class="hidden">
+  <div class="ctrl-code-wrap">
+    <span class="ctrl-code-label">Code</span>
+    <span class="ctrl-code-val" id="myCode">…</span>
   </div>
-  <div id="test-label">Test</div>
+  <div class="ctrl-pill">
+    <div class="ctrl-dot" id="ctrlDot"></div>
+    <span id="ctrlStatus">En attente du contrôleur</span>
+  </div>
+  <button class="btn-back" onclick="goHome()">← Accueil</button>
 </div>
-
-<!-- ══ ÉCRAN DE CONTRÔLE ══ -->
-<div id="ctrl-screen" class="screen">
-  <div class="ctrl-header">
-    <h2>🎛 CONTRÔLE</h2>
-    <div class="status-pill">
-      <div class="dot" id="ctrl-dot"></div>
-      <span id="ctrl-status">Déconnecté</span>
+ 
+<!-- ══════════════════════════════════════════
+     CALIBRATION
+══════════════════════════════════════════ -->
+<div class="screen" id="sCalib">
+  <div class="calib-title">Mira</div>
+  <div class="calib-step">Étape 1 — Calibration de l'écran</div>
+  <div class="calib-body">
+    <div class="calib-instruction">
+      Posez une règle sur l'écran et faites glisser la poignée<br>
+      jusqu'à ce que la barre mesure exactement <strong>5 cm</strong>.
     </div>
-    <button class="btn" onclick="goBack()" style="font-size:.72rem;padding:.35rem .8rem;">← Retour</button>
-  </div>
-
-  <div class="ctrl-body">
-    <div class="video-area">
-      <canvas id="remote-canvas"></canvas>
-      <div id="no-video-msg">
-        📡 Flux caméra de l'écran de test<br>
-        <span style="font-size:.7rem;color:#333;">Connectez-vous d'abord avec le code.</span>
+    <div class="cal-track-wrap">
+      <div class="cal-track">
+        <div class="cal-bar" id="calRuler"><span class="cal-ruler-txt" id="calRulerTxt">← 5 cm →</span></div>
+        <div class="cal-handle" id="calHandle">&#8942;</div>
       </div>
-      <div class="stream-badge" id="stream-badge">● LIVE</div>
+      <div class="cal-track-labels">
+        <span style="color:#bbb;font-size:10px;letter-spacing:.06em;">0</span>
+        <span class="cal-px-val" id="calValTxt">—</span>
+      </div>
     </div>
-
-    <div class="side-panel">
-      <h3>Connexion</h3>
-      <div class="conn-block">
-        <div class="input-row">
-          <input id="peer-code-input" type="text" placeholder="CODE" maxlength="8" autocomplete="off" spellcheck="false" oninput="this.value=this.value.toUpperCase()">
-          <button id="btn-connect" onclick="connectToPeer()">Relier</button>
+    <div class="cal-ok-badge" id="calOk">✓ Calibration enregistrée</div>
+    <button class="btn-validate" onclick="goMode()">Valider →</button>
+  </div>
+</div>
+ 
+<!-- ══════════════════════════════════════════
+     CHOIX MODE
+══════════════════════════════════════════ -->
+<div class="screen" id="sMode">
+  <div class="mode-title">Mira</div>
+  <div class="mode-step">Étape 2 — Choisir le mode</div>
+  <div class="mode-btns">
+    <button class="btn-mode" id="btnEyeTracker" onclick="startEyeTracker()">Eye tracker</button>
+    <button class="btn-mode" onclick="startClickMode()">Mode clic</button>
+  </div>
+  <button class="btn-recalib" onclick="showScreen('sCalib')">← Recalibrer</button>
+</div>
+ 
+<!-- ══════════════════════════════════════════
+     TEST ARENA
+══════════════════════════════════════════ -->
+<div class="screen" id="sTest">
+  <div class="progress-bar"><div class="progress-fill" id="progFill" style="width:100%"></div></div>
+  <div class="timer-hint" id="timerHint">5.0</div>
+  <div class="test-arena" id="arena">
+    <div class="ball-container" id="bcLeft"><canvas class="ball-canvas" id="bLeft"></canvas></div>
+    <div class="ball-container" id="bcRight"><canvas class="ball-canvas" id="bRight"></canvas></div>
+    <canvas id="starCanvas" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:none;pointer-events:none;"></canvas>
+  </div>
+  <div class="size-label" id="sizeLabel"></div>
+  <div class="dist-label" id="distLabel"></div>
+  <video id="videoMini" autoplay playsinline muted></video>
+  <canvas id="canvasMini"></canvas>
+</div>
+ 
+<!-- Pause -->
+<div id="pauseOverlay">
+  <div class="pause-title">Pause</div>
+  <div class="overlay-btns">
+    <button class="btn-ov-primary" onclick="resumeTest()">▶ Continuer</button>
+    <button class="btn-ov-secondary" onclick="restartFromPause()">↺ Nouveau test</button>
+    <button class="btn-ov-ghost" onclick="recalibFromPause()">⚙ Recalibrer</button>
+  </div>
+</div>
+ 
+<!-- Eye picker -->
+<div id="eyePicker">
+  <div class="ep-title">Quel œil était testé ?</div>
+  <div class="ep-btns">
+    <button class="btn-mode" onclick="pickEye('od')">Œil droit (OD)</button>
+    <button class="btn-mode" onclick="pickEye('og')">Œil gauche (OG)</button>
+    <button class="btn-mode" onclick="pickEye('bino')">Binoculaire</button>
+  </div>
+</div>
+ 
+<!-- Résultat -->
+<div id="resultModal">
+  <div class="rm-left">
+    <div style="display:flex;align-items:baseline;gap:10px;">
+      <div class="rm-num" id="rmNum">—</div>
+      <div id="rmEye" style="font-size:clamp(13px,2.4vw,20px);font-weight:300;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;">—</div>
+    </div>
+    <div class="rm-unit" id="rmUnit">à 80 cm</div>
+    <div class="rm-dist" id="rmDist"></div>
+    <div class="rm-verdict" id="rmVerdict"></div>
+  </div>
+  <div class="rm-right">
+    <div class="rm-hist-title">Sessions</div>
+    <div class="rm-h-list" id="rmHistList"></div>
+    <div class="overlay-btns" style="margin-top:8px;">
+      <button class="btn-ov-primary" onclick="newTestFromModal()">↺ Nouveau test</button>
+      <button class="btn-ov-secondary" onclick="exportCSV()">Export CSV</button>
+      <button class="btn-ov-ghost" onclick="recalibFromModal()">⚙ Recalibrer</button>
+    </div>
+  </div>
+</div>
+ 
+<!-- ══════════════════════════════════════════
+     CONTRÔLE — CONNEXION
+══════════════════════════════════════════ -->
+<div class="screen" id="sCtrlConnect">
+  <div class="cc-logo">Mira</div>
+  <div class="cc-step">Contrôle — Connexion</div>
+  <div class="cc-form">
+    <div class="cc-form-label">Code affiché sur l'écran de test</div>
+    <div class="cc-input-row">
+      <input id="ccInput" type="text" placeholder="······" maxlength="8"
+        autocomplete="off" spellcheck="false"
+        oninput="this.value=this.value.toUpperCase()"
+        onkeydown="if(event.key==='Enter')connectToTest()">
+      <button class="btn-cc" id="btnCc" onclick="connectToTest()">Relier →</button>
+    </div>
+    <div id="ccStatus">—</div>
+  </div>
+  <button class="btn-back" style="margin-top:1rem;" onclick="goHome()">← Accueil</button>
+</div>
+ 
+<!-- ══════════════════════════════════════════
+     CONTRÔLE — INTERFACE PRINCIPALE
+══════════════════════════════════════════ -->
+<div id="sCtrlMain">
+ 
+  <div class="cm-hdr">
+    <div class="cm-hdr-logo">Mira</div>
+    <div class="cm-hdr-pill"><div class="cm-live-dot"></div><span id="cConnCode">—</span></div>
+    <button class="btn-back" onclick="ctrlDisconnect()">← Déconnecter</button>
+  </div>
+ 
+  <div class="cm-body">
+ 
+    <!-- Colonne gauche : deux vues empilées -->
+    <div class="cm-views">
+ 
+      <!-- VUE 1 : caméra locale (téléphone → patient) -->
+      <div class="cm-view">
+        <div class="cm-view-lbl">Caméra patient</div>
+        <div class="cm-view-badge" id="cBadgeEye">● Live</div>
+        <canvas id="ctrlCanvasEye"></canvas>
+        <div class="cm-no-content" id="cNoEye">Activez la caméra →</div>
+      </div>
+ 
+      <!-- VUE 2 : test en direct (webcam écran test via PeerJS) -->
+      <div class="cm-view">
+        <div class="cm-view-lbl">Test en direct</div>
+        <div class="cm-view-badge" id="cBadgeTest">● Live</div>
+        <canvas id="ctrlCanvasTest"></canvas>
+        <div class="cm-no-content" id="cNoTest">En attente du flux</div>
+      </div>
+ 
+    </div>
+ 
+    <!-- Colonne droite : panneau -->
+    <div class="cm-panel">
+ 
+      <div>
+        <div class="cm-sec">Acuité visuelle</div>
+        <div style="margin-top:.5rem;">
+          <div class="cm-av-val" id="cAvVal">—</div>
+          <div class="cm-av-sub" id="cDistVal">distance —</div>
+          <div class="cm-av-sub" id="cLevelTxt" style="margin-top:.15rem;color:#ccc;">niveau —/—</div>
+          <div class="cm-level-bar"><div class="cm-level-fill" id="cLevelFill"></div></div>
         </div>
-        <span id="conn-hint" style="font-family:'DM Mono',monospace;font-size:.68rem;color:#444;">
-          Entrez le code affiché sur l'écran de test.
-        </span>
       </div>
-
-      <hr class="div">
-      <h3>Commandes</h3>
-      <button class="ctrl-btn" id="btn-t1" onclick="sendCmd('Test')" disabled>▶ Afficher "Test"</button>
-      <button class="ctrl-btn" id="btn-t2" onclick="sendCmd('Test 2')" disabled>▶ Afficher "Test 2"</button>
-
-      <hr class="div">
-      <h3>Journal</h3>
-      <div class="log-area" id="log"></div>
+ 
+      <div class="cm-state" id="cStateTag">En attente</div>
+ 
+      <div>
+        <div class="cm-sec">Commandes</div>
+        <div class="cm-btns" style="margin-top:.55rem;">
+          <button class="cm-btn primary" id="cBtnPause" onclick="ctrlCmd('cmd-pause')" disabled>⏸ Pause</button>
+          <button class="cm-btn" id="cBtnResume" onclick="ctrlCmd('cmd-resume')" disabled style="display:none">▶ Continuer</button>
+          <button class="cm-btn" id="cBtnStop" onclick="ctrlCmd('cmd-stop')" disabled>⏹ Arrêter</button>
+          <button class="cm-btn" id="cBtnMode" onclick="ctrlCmd('cmd-goMode')" disabled>↺ Choisir mode</button>
+        </div>
+      </div>
+ 
+      <div>
+        <div class="cm-sec">Caméra locale</div>
+        <div class="cm-lcam">
+          <video id="localVid" autoplay muted playsinline></video>
+          <div class="cm-lcam-lbl" id="lcamLbl">inactive</div>
+        </div>
+        <button class="cm-btn" id="cBtnCam" onclick="toggleLocalCam()" style="margin-top:.4rem;">Activer →</button>
+      </div>
+ 
+      <div>
+        <div class="cm-sec">Résultat</div>
+        <div class="cm-result" id="cRp">
+          <div class="cm-result-val" id="cRpVal">—</div>
+          <div class="cm-result-detail" id="cRpDetail">—</div>
+        </div>
+        <div class="cm-hist" id="cHistList"></div>
+      </div>
+ 
     </div>
   </div>
-
-  <div class="ctrl-footer">
-    <div class="dot" id="ctrl-foot-dot"></div>
-    <span id="ctrl-foot-status">En attente de connexion</span>
-  </div>
+ 
+  <div class="cm-ftr"><span id="cFtrTxt">Connecté</span></div>
 </div>
-
-<!-- Canvas caché pour capture caméra (côté test) -->
-<canvas id="cap-canvas" style="display:none"></canvas>
-<video id="local-video" autoplay muted playsinline style="display:none"></video>
-
+ 
+<!-- ══════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════ -->
 <script>
-// ═══════════════════════════════════════
-// ÉTAT GLOBAL
-// ═══════════════════════════════════════
-let mode = null;          // 'test' | 'ctrl'
-let peer = null;          // PeerJS instance
-let conn = null;          // DataConnection
-let cameraStream = null;
-let frameTimer = null;
-let currentText = 'Test';
-
-// ═══════════════════════════════════════
-// NAVIGATION
-// ═══════════════════════════════════════
-function show(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+const SEUIL=0.03,STEP_DURATION=5000,HOLD_CORRECT_MS=600;
+const LANDOLT_LEVELS=[
+  {av:0.3,hmm:194.08},{av:0.4,hmm:145.51},{av:0.5,hmm:116.39},{av:0.6,hmm:96.98},
+  {av:0.8,hmm:72.73},{av:1.0,hmm:58.18},{av:1.3,hmm:44.75},{av:1.6,hmm:36.36},
+  {av:2.0,hmm:29.09},{av:2.5,hmm:23.27},{av:3.2,hmm:18.18},{av:4.0,hmm:14.54},
+  {av:5.0,hmm:11.64},{av:6.3,hmm:9.23},{av:7.0,hmm:8.31},{av:8.0,hmm:7.27},
+  {av:9.0,hmm:6.46},{av:10.0,hmm:5.82},
+];
+let PX_PER_CM=(()=>{const el=document.createElement('div');el.style.cssText='position:absolute;width:1cm;height:1cm;visibility:hidden;';document.body.appendChild(el);const px=el.offsetWidth||37.8;document.body.removeChild(el);return px;})();
+try{const s=localStorage.getItem('pxPerCm');if(s&&parseFloat(s)>10)PX_PER_CM=parseFloat(s);}catch(e){}
+let PX_PER_MM=PX_PER_CM/10;
+function mmToPx(mm){return Math.round(mm*PX_PER_MM);}
+function avLabel(av){return av%1===0?av.toFixed(0):av.toString().replace('.',',');}
+function applyCalibration(px){PX_PER_CM=px/5;PX_PER_MM=PX_PER_CM/10;try{localStorage.setItem('pxPerCm',PX_PER_CM);}catch(e){}}
+ 
+let appRole=null,peer=null,peerConn=null;
+let faceMeshObj=null,cameraObj=null,camReady=false;
+let smoothH=0.5,gazeDir='none',smoothHead=0,headDir='none';
+let estimatedDistCm=80;
+const IPD_REF_MM=63,HEAD_YAW_SEUIL=0.04;
+let testRunning=false,testFinished=false,testPaused=false,pauseStart=0;
+let stepIndex=0,spinSide='left',stepStartTime=0,correctHoldStart=null;
+let lastGoodSize=LANDOLT_LEVELS[0],rafId=null;
+let clickMode=false,detectedEye='bino',pendingSession=null;
+let history=JSON.parse(localStorage.getItem('gazeHist2')||'[]');
+let spinAngle=0,currentSpinSz=0,lastRafTs=null;
+const STROKE_RATIO=0.40,SPIN_SPEED=40*2*Math.PI/(60*1000);
+let starRafId=null,transitionActive=false;
+ 
+// ── NAV ──
+function chooseRole(role){
+  appRole=role;
+  if(role==='test'){
+    showScreen('sCalib');
+    document.getElementById('ctrlBanner').classList.remove('hidden');
+    initTestPeer();
+  }else{showScreen('sCtrlConnect');initCtrlPeer();}
+}
+function goHome(){
+  testRunning=false;testPaused=false;testFinished=true;
+  cancelAnimationFrame(rafId);
+  if(starRafId){cancelAnimationFrame(starRafId);starRafId=null;}
+  if(peerConn)try{peerConn.close();}catch(e){}
+  if(peer)try{peer.destroy();}catch(e){}
+  peer=null;peerConn=null;appRole=null;
+  stopLocalCam();
+  document.getElementById('ctrlBanner').classList.add('hidden');
+  document.getElementById('pauseOverlay').classList.remove('visible');
+  document.getElementById('resultModal').classList.remove('visible');
+  document.getElementById('eyePicker').style.display='none';
+  document.getElementById('sCtrlMain').style.display='none';
+  showScreen('sHome');
+}
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
 }
-
-function goBack() {
-  cleanup();
-  show('menu');
-  mode = null;
+ 
+// ── PEER TEST ──
+function makeCode(){const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<6;i++)s+=c[Math.floor(Math.random()*c.length)];return s;}
+function initTestPeer(){
+  const code=makeCode();
+  document.getElementById('myCode').textContent=code;
+  peer=new Peer('mira-test-'+code,{host:'0.peerjs.com',port:443,secure:true,config:{iceServers:[{urls:'stun:stun.l.google.com:19302'}]}});
+  peer.on('open',()=>setTestBanner(false,'En attente'));
+  peer.on('connection',c=>{peerConn=c;c.on('open',()=>{setTestBanner(true,'Contrôleur connecté');sendTestState();});c.on('data',handleTestCmd);c.on('close',()=>{setTestBanner(false,'Contrôleur déconnecté');peerConn=null;});});
+  peer.on('error',()=>setTestBanner(false,'Erreur réseau'));
 }
-
-function cleanup() {
-  stopCamera();
-  stopFrames();
-  if (conn) { try { conn.close(); } catch(e){} conn = null; }
-  if (peer) { try { peer.destroy(); } catch(e){} peer = null; }
-}
-
-// ═══════════════════════════════════════
-// GÉNÉRATION D'UN CODE COURT ET LISIBLE
-// ═══════════════════════════════════════
-function makeCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let c = '';
-  for (let i = 0; i < 6; i++) c += chars[Math.floor(Math.random() * chars.length)];
-  return c;
-}
-
-// ═══════════════════════════════════════
-// ÉCRAN DE TEST
-// ═══════════════════════════════════════
-function openTest() {
-  mode = 'test';
-  show('test-screen');
-  setTestStatus('warn', 'Connexion au serveur…');
-
-  const code = makeCode();
-  document.getElementById('my-code').textContent = code;
-
-  peer = new Peer('testscreen-' + code, {
-    host: '0.peerjs.com', port: 443, secure: true,
-    config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
-  });
-
-  peer.on('open', () => {
-    setTestStatus('warn', 'En attente du contrôle…');
-  });
-
-  peer.on('connection', (c) => {
-    conn = c;
-    conn.on('open', () => {
-      setTestStatus('live', 'Contrôle connecté');
-      startCameraAndStream();
-    });
-    conn.on('data', (data) => {
-      if (data.type === 'cmd') applyLabel(data.text);
-    });
-    conn.on('close', () => {
-      setTestStatus('warn', 'Contrôle déconnecté');
-      stopCamera(); stopFrames();
-    });
-    conn.on('error', (e) => setTestStatus('warn', 'Erreur: ' + e));
-  });
-
-  peer.on('error', (e) => {
-    setTestStatus('warn', 'Erreur réseau');
-    console.error(e);
-  });
-}
-
-function applyLabel(text) {
-  const el = document.getElementById('test-label');
-  el.textContent = text;
-  el.classList.remove('pop');
-  void el.offsetWidth;
-  el.classList.add('pop');
-  setTimeout(() => el.classList.remove('pop'), 600);
-  currentText = text;
-}
-
-function setTestStatus(state, txt) {
-  const dot = document.getElementById('test-dot');
-  dot.className = 'dot' + (state === 'live' ? ' live' : state === 'warn' ? ' warn' : '');
-  document.getElementById('test-status').textContent = txt;
-}
-
-// ═══════════════════════════════════════
-// CAMÉRA — côté TEST (envoi frames)
-// ═══════════════════════════════════════
-async function startCameraAndStream() {
-  if (cameraStream) return;
-  try {
-    cameraStream = await navigator.mediaDevices.getUserMedia({
-      video: { width: { ideal: 640 }, height: { ideal: 360 }, facingMode: 'environment' },
-      audio: false
-    });
-    document.getElementById('local-video').srcObject = cameraStream;
-    startFrames();
-  } catch(e) {
-    console.warn('Caméra indisponible:', e.message);
-    // Envoyer un signal texte pour informer le contrôle
-    if (conn && conn.open) conn.send({ type: 'no-camera' });
+function setTestBanner(live,txt){document.getElementById('ctrlDot').className='ctrl-dot'+(live?' live':'');document.getElementById('ctrlStatus').textContent=txt;}
+function sendToCtrl(msg){if(peerConn&&peerConn.open)try{peerConn.send(msg);}catch(e){}}
+function sendTestState(){sendToCtrl({type:'state',screen:currentTestScreen(),testRunning,testPaused,testFinished,stepIndex,totalLevels:LANDOLT_LEVELS.length});}
+function currentTestScreen(){for(const id of['sCalib','sMode','sTest'])if(document.getElementById(id).classList.contains('active'))return id;return 'unknown';}
+let _lastFrTs=0;
+function frameThrottle(){const n=Date.now();if(n-_lastFrTs<200)return false;_lastFrTs=n;return true;}
+function handleTestCmd(msg){
+  if(!msg||!msg.type)return;
+  switch(msg.type){
+    case 'cmd-pause':   if(testRunning&&!testPaused)pauseTest();break;
+    case 'cmd-resume':  if(testPaused)resumeTest();break;
+    case 'cmd-stop':    testStopFromCtrl();break;
+    case 'cmd-goMode':  testGoModeFromCtrl();break;
+    case 'cmd-recalib': testRecalibFromCtrl();break;
+    case 'cmd-pickEye': pickEye(msg.eye);break;
+    case 'ping':        sendTestState();break;
   }
 }
-
-function startFrames() {
-  if (frameTimer) return;
-  const canvas = document.getElementById('cap-canvas');
-  const ctx = canvas.getContext('2d');
-  const vid = document.getElementById('local-video');
-  canvas.width = 640; canvas.height = 360;
-
-  frameTimer = setInterval(() => {
-    if (!conn || !conn.open || vid.readyState < 2) return;
-    ctx.drawImage(vid, 0, 0, 640, 360);
-    const jpg = canvas.toDataURL('image/jpeg', 0.45);
-    try { conn.send({ type: 'frame', data: jpg }); } catch(e) {}
-  }, 120); // ~8fps
+function testStopFromCtrl(){testRunning=false;testPaused=false;testFinished=true;cancelAnimationFrame(rafId);if(starRafId){cancelAnimationFrame(starRafId);starRafId=null;}transitionActive=false;document.getElementById('pauseOverlay').classList.remove('visible');showScreen('sMode');document.getElementById('ctrlBanner').classList.remove('hidden');sendTestState();}
+function testGoModeFromCtrl(){if(testRunning)testStopFromCtrl();else{showScreen('sMode');document.getElementById('ctrlBanner').classList.remove('hidden');sendTestState();}}
+function testRecalibFromCtrl(){testRunning=false;testPaused=false;testFinished=true;cancelAnimationFrame(rafId);document.getElementById('pauseOverlay').classList.remove('visible');document.getElementById('resultModal').classList.remove('visible');showScreen('sCalib');document.getElementById('ctrlBanner').classList.remove('hidden');sendTestState();}
+ 
+// ── PEER CTRL ──
+function initCtrlPeer(){
+  peer=new Peer(undefined,{host:'0.peerjs.com',port:443,secure:true,config:{iceServers:[{urls:'stun:stun.l.google.com:19302'}]}});
+  peer.on('open',()=>setCcStatus('','Prêt — entrez le code'));
+  peer.on('error',e=>setCcStatus('err','Erreur : '+e.type));
 }
-
-function stopFrames() {
-  if (frameTimer) { clearInterval(frameTimer); frameTimer = null; }
+function connectToTest(){
+  const raw=document.getElementById('ccInput').value.trim().toUpperCase();
+  if(raw.length<4){setCcStatus('err','Code trop court');return;}
+  setCcStatus('','Connexion…');
+  document.getElementById('btnCc').disabled=true;
+  peerConn=peer.connect('mira-test-'+raw,{reliable:true});
+  peerConn.on('open',()=>{document.getElementById('sCtrlConnect').classList.remove('active');document.getElementById('sCtrlMain').style.display='flex';document.getElementById('cConnCode').textContent=raw;peerConn.send({type:'ping'});});
+  peerConn.on('data',handleCtrlMsg);
+  peerConn.on('close',()=>{document.getElementById('cStateTag').textContent='Déconnecté';document.getElementById('cStateTag').className='cm-state';disableCtrlBtns();});
+  peerConn.on('error',()=>{setCcStatus('err','Échec — vérifiez le code');document.getElementById('btnCc').disabled=false;});
+  setTimeout(()=>{if(peerConn&&!peerConn.open){setCcStatus('err','Timeout');document.getElementById('btnCc').disabled=false;try{peerConn.close();}catch(e){}}},8000);
 }
-
-function stopCamera() {
-  if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
-  document.getElementById('local-video').srcObject = null;
+function ctrlCmd(type){if(peerConn&&peerConn.open)peerConn.send({type});}
+function ctrlDisconnect(){if(peerConn)try{peerConn.close();}catch(e){}stopLocalCam();document.getElementById('sCtrlMain').style.display='none';showScreen('sCtrlConnect');document.getElementById('btnCc').disabled=false;setCcStatus('','Déconnecté');}
+function setCcStatus(cls,txt){const el=document.getElementById('ccStatus');el.textContent=txt;el.className=cls;}
+function disableCtrlBtns(){['cBtnPause','cBtnResume','cBtnStop','cBtnMode'].forEach(id=>document.getElementById(id).disabled=true);}
+ 
+// Messages reçus côté ctrl
+let testImg=new Image(),testBusy=false;
+function handleCtrlMsg(msg){
+  if(!msg||!msg.type)return;
+  switch(msg.type){
+    case 'state':     updateCtrlState(msg);break;
+    case 'level':     updateCtrlLevel(msg);break;
+    case 'result':    showCtrlResult(msg.session,msg.history);break;
+    case 'cam-frame': renderTestFrame(msg.data);break;
+  }
 }
-
-// ═══════════════════════════════════════
-// ÉCRAN DE CONTRÔLE
-// ═══════════════════════════════════════
-function openCtrl() {
-  mode = 'ctrl';
-  show('ctrl-screen');
-
-  peer = new Peer(undefined, {
-    host: '0.peerjs.com', port: 443, secure: true,
-    config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
-  });
-
-  peer.on('open', (id) => {
-    ctrlLog('Prêt. Entrez le code de l\'écran de test.', 'info');
-  });
-
-  peer.on('error', (e) => {
-    ctrlLog('Erreur réseau: ' + e.type, 'err');
-    setCtrlStatus(false, 'Erreur réseau');
-  });
+function updateCtrlState(s){
+  const run=s.testRunning,pau=s.testPaused;
+  document.getElementById('cBtnPause').disabled=!(run&&!pau);
+  document.getElementById('cBtnResume').disabled=!pau;
+  document.getElementById('cBtnStop').disabled=!(run||pau);
+  document.getElementById('cBtnMode').disabled=false;
+  document.getElementById('cBtnPause').style.display=pau?'none':'block';
+  document.getElementById('cBtnResume').style.display=pau?'block':'none';
+  const tag=document.getElementById('cStateTag');
+  if(run&&!pau){tag.textContent='● En cours';tag.className='cm-state running';}
+  else if(pau){tag.textContent='⏸ Pause';tag.className='cm-state paused';}
+  else{tag.textContent='En attente';tag.className='cm-state';}
 }
-
-function connectToPeer() {
-  const raw = document.getElementById('peer-code-input').value.trim().toUpperCase();
-  if (raw.length < 4) { ctrlLog('Code trop court', 'err'); return; }
-
-  const targetId = 'testscreen-' + raw;
-  ctrlLog('Connexion à ' + raw + '…', 'info');
-  document.getElementById('btn-connect').disabled = true;
-  document.getElementById('conn-hint').textContent = 'Connexion en cours…';
-
-  conn = peer.connect(targetId, { reliable: true });
-
-  conn.on('open', () => {
-    ctrlLog('Connecté à l\'écran de test !', 'ok');
-    setCtrlStatus(true, 'Écran de test connecté');
-    document.getElementById('conn-hint').textContent = 'Connecté ✓';
-    enableCmds(true);
-  });
-
-  conn.on('data', (data) => {
-    if (data.type === 'frame') renderFrame(data.data);
-    if (data.type === 'no-camera') {
-      ctrlLog('Caméra indisponible sur l\'écran de test', 'err');
-      document.getElementById('no-video-msg').innerHTML =
-        '⚠️ Caméra non disponible<br><span style="font-size:.7rem;color:#555">sur l\'écran de test</span>';
+function updateCtrlLevel(s){
+  document.getElementById('cAvVal').textContent='M'+s.av.toString().replace('.',',');
+  document.getElementById('cDistVal').textContent='~'+s.dist+' cm';
+  document.getElementById('cLevelTxt').textContent='niveau '+(s.stepIndex+1)+'/'+s.totalLevels;
+  document.getElementById('cLevelFill').style.width=(s.stepIndex/Math.max(1,s.totalLevels-1)*100)+'%';
+}
+function showCtrlResult(session,hist){
+  document.getElementById('cRp').classList.add('on');
+  const avS='M'+(session.av%1===0?session.av.toFixed(0):session.av.toString().replace('.',','));
+  document.getElementById('cRpVal').textContent=avS+(session.eye?' · '+session.eye.toUpperCase():'');
+  document.getElementById('cRpDetail').textContent=(session.avCorr?'Corrigée : M'+session.avCorr+' @ '+session.dist+'cm\n':'')+session.levels+' niveaux · '+(session.completed?'Complet':'Arrêté');
+  if(hist&&hist.length)document.getElementById('cHistList').innerHTML=hist.slice(0,5).map(s=>`<div class="cm-hist-item"><span>${s.date} · ${s.levels}niv</span><b>M${s.av%1===0?s.av.toFixed(0):s.av.toString().replace('.',',')} ${s.eye?s.eye.toUpperCase():''}</b></div>`).join('');
+}
+function renderTestFrame(dataURL){
+  const canvas=document.getElementById('ctrlCanvasTest');
+  document.getElementById('cNoTest').style.display='none';
+  document.getElementById('cBadgeTest').classList.add('live');
+  if(testBusy)return;testBusy=true;
+  testImg.onload=()=>{const a=canvas.parentElement,sc=Math.min(a.clientWidth/testImg.width,a.clientHeight/testImg.height);canvas.width=Math.round(testImg.width*sc);canvas.height=Math.round(testImg.height*sc);canvas.getContext('2d').drawImage(testImg,0,0,canvas.width,canvas.height);testBusy=false;};
+  testImg.onerror=()=>{testBusy=false;};
+  testImg.src=dataURL;
+}
+ 
+// Caméra locale → vue eye
+let localStream=null,lcRaf=null;
+async function toggleLocalCam(){
+  const btn=document.getElementById('cBtnCam'),vid=document.getElementById('localVid'),lbl=document.getElementById('lcamLbl');
+  if(localStream){
+    localStream.getTracks().forEach(t=>t.stop());localStream=null;vid.srcObject=null;
+    btn.textContent='Activer →';lbl.textContent='inactive';
+    document.getElementById('cNoEye').style.display='block';document.getElementById('cBadgeEye').classList.remove('live');
+    if(lcRaf){cancelAnimationFrame(lcRaf);lcRaf=null;}
+  }else{
+    try{
+      localStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:640}},audio:false});
+      vid.srcObject=localStream;btn.textContent='Arrêter';lbl.textContent='● live';
+      document.getElementById('cNoEye').style.display='none';document.getElementById('cBadgeEye').classList.add('live');
+      streamLocalToCanvas();
+    }catch(e){btn.textContent='Refusée';setTimeout(()=>btn.textContent='Activer →',2000);}
+  }
+}
+function streamLocalToCanvas(){
+  const vid=document.getElementById('localVid'),canvas=document.getElementById('ctrlCanvasEye');
+  function draw(){
+    if(!localStream){lcRaf=null;return;}
+    if(vid.readyState>=2&&vid.videoWidth>0){
+      const a=canvas.parentElement,sc=Math.min(a.clientWidth/vid.videoWidth,a.clientHeight/vid.videoHeight);
+      canvas.width=Math.round(vid.videoWidth*sc);canvas.height=Math.round(vid.videoHeight*sc);
+      canvas.getContext('2d').drawImage(vid,0,0,canvas.width,canvas.height);
     }
+    lcRaf=requestAnimationFrame(draw);
+  }
+  if(lcRaf)cancelAnimationFrame(lcRaf);
+  lcRaf=requestAnimationFrame(draw);
+}
+function stopLocalCam(){
+  if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;}
+  const v=document.getElementById('localVid');if(v)v.srcObject=null;
+  if(lcRaf){cancelAnimationFrame(lcRaf);lcRaf=null;}
+}
+ 
+// ── MIRA LOGIC ──
+function goMode(){renderHistory();showScreen('sMode');}
+function recalibFromPause(){document.getElementById('pauseOverlay').classList.remove('visible');testRunning=false;testFinished=true;testPaused=false;cancelAnimationFrame(rafId);showScreen('sCalib');document.getElementById('ctrlBanner').classList.remove('hidden');sendTestState();}
+function recalibFromModal(){document.getElementById('resultModal').classList.remove('visible');showScreen('sCalib');document.getElementById('ctrlBanner').classList.remove('hidden');sendTestState();}
+ 
+async function initCamInternal(){
+  const video=document.getElementById('videoMini'),canvas=document.getElementById('canvasMini'),ctx2=canvas.getContext('2d');
+  faceMeshObj=new FaceMesh({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
+  faceMeshObj.setOptions({maxNumFaces:1,refineLandmarks:true,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
+  faceMeshObj.onResults(res=>{
+    canvas.width=video.videoWidth||320;canvas.height=video.videoHeight||240;ctx2.clearRect(0,0,canvas.width,canvas.height);
+    processIris(res,ctx2,canvas.width,canvas.height);
+    if(peerConn&&peerConn.open&&frameThrottle()){const fc=document.createElement('canvas');fc.width=240;fc.height=180;fc.getContext('2d').drawImage(video,0,0,240,180);sendToCtrl({type:'cam-frame',data:fc.toDataURL('image/jpeg',.4)});}
   });
-
-  conn.on('close', () => {
-    ctrlLog('Déconnecté de l\'écran de test', 'err');
-    setCtrlStatus(false, 'Déconnecté');
-    enableCmds(false);
-    document.getElementById('btn-connect').disabled = false;
-    document.getElementById('conn-hint').textContent = 'Entrez le code de l\'écran de test.';
-    hideStream();
-  });
-
-  conn.on('error', (e) => {
-    ctrlLog('Erreur: ' + e, 'err');
-    document.getElementById('btn-connect').disabled = false;
-    document.getElementById('conn-hint').textContent = 'Échec — vérifiez le code.';
-  });
-
-  setTimeout(() => {
-    if (conn && !conn.open) {
-      ctrlLog('Timeout — code incorrect ou écran de test fermé', 'err');
-      document.getElementById('btn-connect').disabled = false;
-      document.getElementById('conn-hint').textContent = 'Échec — vérifiez le code.';
-      try { conn.close(); } catch(e){}
-    }
-  }, 8000);
+  await faceMeshObj.initialize();
+  cameraObj=new Camera(video,{onFrame:async()=>{if(faceMeshObj)await faceMeshObj.send({image:video});},width:320,height:240});
+  await cameraObj.start();
 }
-
-// ═══════════════════════════════════════
-// RENDU DES FRAMES (côté contrôle)
-// ═══════════════════════════════════════
-let frameImg = new Image();
-let canvasBusy = false;
-
-function renderFrame(dataURL) {
-  const canvas = document.getElementById('remote-canvas');
-  const noMsg = document.getElementById('no-video-msg');
-  const badge = document.getElementById('stream-badge');
-
-  noMsg.style.display = 'none';
-  badge.style.display = 'block';
-
-  if (canvasBusy) return;
-  canvasBusy = true;
-
-  frameImg.onload = () => {
-    canvas.width = frameImg.width;
-    canvas.height = frameImg.height;
-    canvas.getContext('2d').drawImage(frameImg, 0, 0);
-    canvasBusy = false;
-  };
-  frameImg.onerror = () => { canvasBusy = false; };
-  frameImg.src = dataURL;
+ 
+const IRIS_L=[474,475,476,477],IRIS_R=[469,470,471,472],EL_OUT=263,EL_IN=362,ER_OUT=33,ER_IN=133,NOSE_TIP=1,CHEEK_R=454,CHEEK_L=234;
+function cOf(lms,idx,w,h){let x=0,y=0;idx.forEach(i=>{x+=lms[i].x;y+=lms[i].y;});return{x:x/idx.length*w,y:y/idx.length*h};}
+function pOf(lms,i,w,h){return{x:lms[i].x*w,y:lms[i].y*h};}
+function hRatio(lms,iris,out,inn,w,h){const c=cOf(lms,iris,w,h),o=pOf(lms,out,w,h),i=pOf(lms,inn,w,h);const ew=Math.abs(o.x-i.x);if(ew<1)return 0.5;return(c.x-Math.min(o.x,i.x))/ew;}
+function processIris(res,ctx,w,h){
+  if(!res.multiFaceLandmarks||!res.multiFaceLandmarks.length){gazeDir='none';return;}
+  const lms=res.multiFaceLandmarks[0];
+  const cL=cOf(lms,IRIS_L,w,h),cR=cOf(lms,IRIS_R,w,h);
+  const ipdPx=Math.abs(cL.x-cR.x);if(ipdPx>10){const rd=(IPD_REF_MM*(w/ipdPx)*0.070);estimatedDistCm=estimatedDistCm*.9+rd*.1;}
+  const avg=((hRatio(lms,IRIS_L,EL_OUT,EL_IN,w,h))+(hRatio(lms,IRIS_R,ER_OUT,ER_IN,w,h)))/2;
+  smoothH=smoothH*.75+avg*.25;
+  const nose=pOf(lms,NOSE_TIP,w,h),cr=pOf(lms,CHEEK_R,w,h),cl=pOf(lms,CHEEK_L,w,h);
+  const fW=Math.abs(cr.x-cl.x);if(fW>10)smoothHead=smoothHead*.75+((nose.x-(cr.x+cl.x)/2)/fW)*.25;
+  headDir=smoothHead>HEAD_YAW_SEUIL?'left':smoothHead<-HEAD_YAW_SEUIL?'right':'none';
+  const el0=Math.abs(lms[386].y-lms[374].y),el1=Math.abs(lms[159].y-lms[145].y);
+  const er=(el0>0.001)?el1/el0:1;
+  if(er<0.45)detectedEye='od';else if(er>2.2)detectedEye='og';else detectedEye='bino';
+  let fAvg=avg;if(detectedEye==='od')fAvg=hRatio(lms,IRIS_R,ER_OUT,ER_IN,w,h);else if(detectedEye==='og')fAvg=hRatio(lms,IRIS_L,EL_OUT,EL_IN,w,h);
+  smoothH=smoothH*.75+fAvg*.25;
+  let irisDir='none';if(smoothH<0.5-SEUIL)irisDir='right';else if(smoothH>0.5+SEUIL)irisDir='left';
+  gazeDir=irisDir!=='none'?irisDir:headDir!=='none'?headDir:'none';
 }
-
-function hideStream() {
-  document.getElementById('stream-badge').style.display = 'none';
-  document.getElementById('no-video-msg').style.display = 'flex';
-  const ctx = document.getElementById('remote-canvas').getContext('2d');
-  ctx.clearRect(0, 0, 9999, 9999);
+ 
+async function startEyeTracker(){
+  detectedEye='bino';const btn=document.getElementById('btnEyeTracker');
+  btn.classList.add('loading');btn.textContent='Initialisation…';
+  try{if(!camReady){await initCamInternal();camReady=true;}clickMode=false;btn.classList.remove('loading');btn.textContent='Eye tracker';startTest();}
+  catch(err){btn.classList.remove('loading');btn.textContent='Eye tracker (indisponible)';btn.style.opacity='.4';btn.style.cursor='not-allowed';}
 }
-
-// ═══════════════════════════════════════
-// COMMANDES
-// ═══════════════════════════════════════
-function sendCmd(text) {
-  if (!conn || !conn.open) return;
-  conn.send({ type: 'cmd', text });
-  ctrlLog(`Commande : "${text}"`, 'ok');
-  document.getElementById('btn-t1').classList.toggle('on', text === 'Test');
-  document.getElementById('btn-t2').classList.toggle('on', text === 'Test 2');
+function startClickMode(){detectedEye='click';clickMode=true;camReady=true;startTest();}
+function startTest(){
+  document.getElementById('ctrlBanner').classList.add('hidden');
+  const maxSzPx=Math.min(window.innerWidth*.38,window.innerHeight*.85);
+  stepIndex=0;for(let i=0;i<LANDOLT_LEVELS.length;i++){if(mmToPx(LANDOLT_LEVELS[i].hmm)<=maxSzPx){stepIndex=i;break;}stepIndex=i;}
+  correctHoldStart=null;testFinished=false;testRunning=true;lastGoodSize=LANDOLT_LEVELS[stepIndex];lastRafTs=null;spinAngle=0;
+  cancelAnimationFrame(rafId);showScreen('sTest');
+  const arena=document.getElementById('arena');
+  if(clickMode){
+    let lcT=0,pP=null;
+    arena.onclick=e=>{if(!testRunning||testFinished)return;const now=Date.now(),dt=now-lcT;lcT=now;if(dt<400){if(pP)clearTimeout(pP);pP=null;pauseTest();return;}pP=setTimeout(()=>{pP=null;const sc=document.getElementById(spinSide==='left'?'bLeft':'bRight');const r=sc.getBoundingClientRect();if(Math.hypot(e.clientX-r.left-r.width/2,e.clientY-r.top-r.height/2)<=r.width/2){gazeDir=spinSide;correctHoldStart=Date.now()-HOLD_CORRECT_MS;}},200);};
+  }else{arena.onclick=()=>pauseTest();}
+  setupStep();sendTestState();rafId=requestAnimationFrame(masterLoop);
 }
-
-function enableCmds(on) {
-  document.getElementById('btn-t1').disabled = !on;
-  document.getElementById('btn-t2').disabled = !on;
+function pauseTest(){
+  if(!testRunning||testFinished)return;testRunning=false;testPaused=true;pauseStart=Date.now();cancelAnimationFrame(rafId);
+  const fill=document.getElementById('progFill');const w=fill.getBoundingClientRect().width/fill.parentElement.getBoundingClientRect().width*100;
+  fill.style.transition='none';fill.style.width=w+'%';document.getElementById('pauseOverlay').classList.add('visible');sendTestState();
 }
-
-// ═══════════════════════════════════════
-// UI HELPERS
-// ═══════════════════════════════════════
-function setCtrlStatus(live, txt) {
-  [document.getElementById('ctrl-dot'), document.getElementById('ctrl-foot-dot')]
-    .forEach(d => { d.className = 'dot' + (live ? ' live' : ''); });
-  document.getElementById('ctrl-status').textContent = txt;
-  document.getElementById('ctrl-foot-status').textContent = txt;
+function resumeTest(){
+  if(!testPaused)return;document.getElementById('pauseOverlay').classList.remove('visible');
+  const pausedMs=Date.now()-pauseStart;stepStartTime+=pausedMs;testPaused=false;testRunning=true;lastRafTs=null;
+  const elapsed=Date.now()-stepStartTime,remaining=Math.max(0,STEP_DURATION-elapsed);
+  const fill=document.getElementById('progFill');fill.style.transition='none';fill.style.width=(remaining/STEP_DURATION*100)+'%';
+  setTimeout(()=>{fill.style.transition='width '+remaining+'ms linear';fill.style.width='0%';},30);
+  rafId=requestAnimationFrame(masterLoop);sendTestState();
 }
-
-function ctrlLog(msg, type = 'info') {
-  const area = document.getElementById('log');
-  const el = document.createElement('span');
-  el.className = type;
-  el.textContent = `[${new Date().toLocaleTimeString('fr')}] ${msg}`;
-  area.prepend(el);
+function restartFromPause(){document.getElementById('pauseOverlay').classList.remove('visible');testPaused=false;testRunning=false;testFinished=true;cancelAnimationFrame(rafId);showScreen('sMode');document.getElementById('ctrlBanner').classList.remove('hidden');sendTestState();}
+ 
+function drawRing(canvas,sz,isSpinning,angle){
+  const dpr=window.devicePixelRatio||1;canvas.style.width=sz+'px';canvas.style.height=sz+'px';canvas.width=Math.round(sz*dpr);canvas.height=Math.round(sz*dpr);
+  const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,sz,sz);
+  const cx=sz/2,cy=sz/2,r=sz/2,sw=Math.max(2,r*STROKE_RATIO),ir=r-sw/2;
+  ctx.beginPath();ctx.arc(cx,cy,ir,0,Math.PI*2);ctx.strokeStyle='#000';ctx.lineWidth=sw;ctx.stroke();
+  if(isSpinning){ctx.save();ctx.globalCompositeOperation='destination-out';ctx.translate(cx,cy);ctx.rotate(angle);ctx.fillStyle='rgba(0,0,0,1)';ctx.fillRect(0,-sw/2,r+4,sw);ctx.restore();}
 }
-
-window.addEventListener('beforeunload', cleanup);
+function updateDistLabel(level){
+  const dist=Math.round(estimatedDistCm),avCorr=level.av*estimatedDistCm/80;
+  const avStd=[0.3,0.4,0.5,0.6,0.8,1.0,1.3,1.6,2.0,2.5,3.2,4.0,5.0,6.3,7.0,8.0,9.0,10.0];
+  const avR=avStd.reduce((a,b)=>Math.abs(b-avCorr)<Math.abs(a-avCorr)?b:a);
+  const eyeTag=detectedEye==='od'?'OD':detectedEye==='og'?'OG':detectedEye==='bino'?'Bino':'';
+  document.getElementById('sizeLabel').textContent='AV '+avLabel(level.av)+'/10  ·  dist ~'+dist+' cm  ·  '+eyeTag;
+  document.getElementById('distLabel').textContent='AV corrigée à 80 cm : '+avLabel(avR)+'/10';
+}
+function showTransition(onDone){
+  transitionActive=true;if(starRafId)cancelAnimationFrame(starRafId);
+  document.getElementById('bLeft').style.opacity='0';document.getElementById('bRight').style.opacity='0';
+  const starEl=document.getElementById('starCanvas'),dpr=window.devicePixelRatio||1,sz=90;
+  starEl.style.width=sz+'px';starEl.style.height=sz+'px';starEl.width=sz*dpr;starEl.height=sz*dpr;
+  const ctx=starEl.getContext('2d');ctx.scale(dpr,dpr);starEl.style.display='block';
+  const DURATION=2400,start=performance.now(),SPEED=2*Math.PI*.35/DURATION;
+  function loop(ts){
+    if(!transitionActive){starEl.style.display='none';return;}
+    const elapsed=ts-start,progress=Math.min(elapsed/DURATION,1);
+    let alpha=1;if(progress<.25)alpha=progress/.25;else if(progress>.75)alpha=(1-progress)/.25;
+    ctx.clearRect(0,0,sz,sz);ctx.save();ctx.globalAlpha=alpha;ctx.translate(sz/2,sz/2);ctx.rotate(elapsed*SPEED);
+    const r=sz/2-4,pts=5;ctx.beginPath();
+    for(let i=0;i<pts*2;i++){const a=-Math.PI/2+(i*Math.PI)/pts;const rad=i%2===0?r:r*.40;i===0?ctx.moveTo(Math.cos(a)*rad,Math.sin(a)*rad):ctx.lineTo(Math.cos(a)*rad,Math.sin(a)*rad);}
+    ctx.closePath();ctx.fillStyle='#111';ctx.fill();ctx.restore();
+    if(progress>=1){starEl.style.display='none';transitionActive=false;document.getElementById('bLeft').style.opacity='1';document.getElementById('bRight').style.opacity='1';onDone();return;}
+    starRafId=requestAnimationFrame(loop);
+  }
+  starRafId=requestAnimationFrame(loop);
+}
+function setupStep(){
+  const level=LANDOLT_LEVELS[stepIndex],maxSzPx=Math.min(window.innerWidth*.38,window.innerHeight*.85),sz=Math.min(mmToPx(level.hmm),maxSzPx);
+  spinSide=Math.random()<0.5?'left':'right';spinAngle=0;
+  const spinId=spinSide==='left'?'bLeft':'bRight',stillId=spinSide==='left'?'bRight':'bLeft';
+  positionHalf('bcLeft','left',sz);positionHalf('bcRight','right',sz);
+  drawRing(document.getElementById(stillId),sz,false,0);document.getElementById(stillId).className='ball-canvas';document.getElementById(spinId).className='ball-canvas';
+  updateDistLabel(level);document.getElementById('progFill').style.transition='none';document.getElementById('progFill').style.width='100%';
+  correctHoldStart=null;stepStartTime=Date.now();currentSpinSz=sz;
+  setTimeout(()=>{document.getElementById('progFill').style.transition='width '+STEP_DURATION+'ms linear';document.getElementById('progFill').style.width='0%';},30);
+  sendToCtrl({type:'level',stepIndex,totalLevels:LANDOLT_LEVELS.length,av:level.av,dist:Math.round(estimatedDistCm)});
+}
+function positionHalf(containerId,side,sz){
+  const el=document.getElementById(containerId),vw=window.innerWidth,vh=window.innerHeight;
+  const cx=side==='left'?vw*.13:vw*.87,cy=vh/2;
+  el.style.position='absolute';el.style.left=(cx-sz/2)+'px';el.style.top=(cy-sz/2)+'px';el.style.width=sz+'px';el.style.height=sz+'px';
+}
+function masterLoop(ts){
+  if(!testRunning)return;
+  if(lastRafTs!==null)spinAngle+=(ts-lastRafTs)*SPIN_SPEED;lastRafTs=ts;
+  drawRing(document.getElementById(spinSide==='left'?'bLeft':'bRight'),currentSpinSz,true,spinAngle);
+  const now=Date.now(),elapsed=now-stepStartTime,remaining=Math.max(0,(STEP_DURATION-elapsed)/1000);
+  document.getElementById('timerHint').textContent=remaining.toFixed(1);
+  if(stepIndex<LANDOLT_LEVELS.length)updateDistLabel(LANDOLT_LEVELS[stepIndex]);
+  const gazingCorrect=(gazeDir===spinSide),bSpinEl=document.getElementById(spinSide==='left'?'bLeft':'bRight');
+  if(gazingCorrect)bSpinEl.classList.add('gazing');else bSpinEl.classList.remove('gazing');
+  if(gazingCorrect){
+    if(correctHoldStart===null)correctHoldStart=now;
+    if(now-correctHoldStart>=HOLD_CORRECT_MS){lastGoodSize=LANDOLT_LEVELS[stepIndex];stepIndex++;if(stepIndex>=LANDOLT_LEVELS.length){finishTest(true);return;}lastRafTs=null;spinAngle=0;if(clickMode)gazeDir='none';showTransition(()=>{setupStep();rafId=requestAnimationFrame(masterLoop);});return;}
+  }else{correctHoldStart=null;}
+  if(elapsed>=STEP_DURATION){finishTest(false);return;}
+  rafId=requestAnimationFrame(masterLoop);
+}
+function finishTest(completed){
+  if(testFinished)return;testFinished=true;testRunning=false;
+  cancelAnimationFrame(rafId);if(starRafId){cancelAnimationFrame(starRafId);starRafId=null;}transitionActive=false;
+  document.getElementById('bLeft').style.opacity='1';document.getElementById('bRight').style.opacity='1';document.getElementById('starCanvas').style.display='none';
+  const finalLevel=lastGoodSize,levelsReached=completed?LANDOLT_LEVELS.length:stepIndex;
+  const distAtEnd=Math.round(estimatedDistCm),avCorrFinal=parseFloat((finalLevel.av*estimatedDistCm/80).toFixed(1));
+  const eyeFinal=clickMode?'pending':detectedEye;
+  const avToM=av=>'M'+(av%1===0?av.toFixed(0):av.toString().replace('.',','));
+  pendingSession={date:new Date().toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}),av:finalLevel.av,avCorr:avCorrFinal,dist:distAtEnd,levels:levelsReached,completed,eye:eyeFinal};
+  let verdict='';if(completed)verdict='Score parfait — tous les niveaux réussis !';else if(levelsReached>=10)verdict='Acuité attentionnelle excellente.';else if(levelsReached>=7)verdict='Bonne attraction visuelle au mouvement.';else if(levelsReached>=4)verdict='Attraction modérée — sensible aux grands stimuli.';else verdict='Faible attraction détectée.';
+  document.getElementById('rmVerdict').textContent=verdict;document.getElementById('rmNum').textContent=avToM(finalLevel.av);document.getElementById('rmUnit').textContent='à 80 cm';document.getElementById('rmDist').textContent='Acuité corrigée '+avToM(avCorrFinal)+' à '+distAtEnd+' cm';
+  sendTestState();document.getElementById('ctrlBanner').classList.remove('hidden');
+  if(clickMode){setTimeout(()=>document.getElementById('eyePicker').style.display='flex',0);}else{saveAndShowResult(eyeFinal);}
+}
+function pickEye(eye){document.getElementById('eyePicker').style.display='none';saveAndShowResult(eye);}
+function saveAndShowResult(eye){
+  if(!pendingSession)return;pendingSession.eye=eye;
+  document.getElementById('rmEye').textContent=({bino:'Bino',od:'OD',og:'OG',click:'Clic'}[eye]||eye);
+  history.unshift(pendingSession);if(history.length>30)history=history.slice(0,30);localStorage.setItem('gazeHist2',JSON.stringify(history));renderHistory();
+  setTimeout(()=>document.getElementById('resultModal').classList.add('visible'),0);
+  sendToCtrl({type:'result',session:pendingSession,history:history.slice(0,10)});pendingSession=null;sendTestState();
+}
+function renderHistory(){
+  const list=document.getElementById('rmHistList');if(!list)return;
+  if(!history.length){list.innerHTML='<div style="font-size:11px;color:#ccc;padding:5px 0">Aucune session</div>';return;}
+  list.innerHTML=history.slice(0,8).map(s=>`<div class="rm-h-item"><span>${s.date} · ${s.levels} niv.</span><span>M${avLabel(s.av)} ${s.eye?s.eye.toUpperCase():''}</span></div>`).join('');
+}
+function newTestFromModal(){document.getElementById('resultModal').classList.remove('visible');showScreen('sMode');sendTestState();}
+function exportCSV(){
+  const rows=[['#','Date','AV','Niveaux','Complété','Œil']];history.forEach((s,i)=>rows.push([history.length-i,s.date,s.av,s.levels,s.completed?'oui':'non',s.eye||'']));
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(rows.map(r=>r.join(',')).join('\n'));a.download='mira_'+Date.now()+'.csv';a.click();
+}
+ 
+// ── CALIBRATION ──
+function initCalibration(){
+  const bar=document.getElementById('calRuler'),handle=document.getElementById('calHandle'),track=bar?bar.parentElement:null,rulerTxt=document.getElementById('calRulerTxt'),calOk=document.getElementById('calOk');
+  if(!bar||!handle||!track)return;
+  const getMax=()=>track.getBoundingClientRect().width||window.innerWidth-80,MIN=60;
+  let rulerPx=Math.max(MIN,Math.min(getMax(),PX_PER_CM*5));
+  function updateRuler(px){rulerPx=Math.max(MIN,Math.min(getMax(),px));bar.style.width=rulerPx+'px';rulerTxt.textContent='← 5 cm →';document.getElementById('calValTxt').textContent=Math.round(rulerPx)+'px';}
+  updateRuler(rulerPx);
+  let dragging=false,startX=0,startW=0;
+  const onStart=e=>{dragging=true;startX=e.touches?e.touches[0].clientX:e.clientX;startW=rulerPx;e.preventDefault();};
+  const onMove=e=>{if(!dragging)return;updateRuler(startW+(e.touches?e.touches[0].clientX:e.clientX)-startX);e.preventDefault();};
+  const onEnd=()=>{if(!dragging)return;dragging=false;applyCalibration(rulerPx);calOk.style.display='block';setTimeout(()=>calOk.style.display='none',2000);};
+  handle.addEventListener('mousedown',onStart);handle.addEventListener('touchstart',onStart,{passive:false});
+  window.addEventListener('mousemove',onMove);window.addEventListener('touchmove',onMove,{passive:false});
+  window.addEventListener('mouseup',onEnd);window.addEventListener('touchend',onEnd);
+}
+ 
+document.addEventListener('DOMContentLoaded',initCalibration);
+window.addEventListener('beforeunload',()=>{if(peer)peer.destroy();stopLocalCam();});
 </script>
 </body>
 </html>
